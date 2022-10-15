@@ -29,7 +29,7 @@ static Pattern patterns[]{
             return std::nullopt;
         }},
         {P_BLOCK_COMMENT,   T_CALLBACK {
-            int newLineCount = std::count_if(
+            size_t newLineCount = std::count_if(
                     str.begin(),
                     str.end(),
                     [](char c) { return c == '\n'; }
