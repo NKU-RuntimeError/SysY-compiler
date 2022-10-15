@@ -4,6 +4,12 @@ project(sysy_compiler)
 set(CMAKE_CXX_STANDARD 17)
 
 #
+# compile options
+#
+
+option(LOG_OUTPUT "show log info" OFF)
+
+#
 # frontend part
 #
 
@@ -26,6 +32,10 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 file(GLOB_RECURSE COMPILER_SRC src/*.cpp)
 list(APPEND HEADERS src)
 list(APPEND HEADERS src/frontend)
+
+if(LOG_OUTPUT)
+    add_compile_definitions(CONF_LOG_OUTPUT)
+endif()
 
 add_executable(sysy_compiler
         ${COMPILER_SRC}

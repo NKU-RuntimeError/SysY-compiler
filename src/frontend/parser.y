@@ -1,6 +1,7 @@
 %{
 #include <iostream>
 #include <string>
+#include "log.h"
 #include "lexer.h"
 int yylex();
 extern int yyparse();
@@ -72,6 +73,6 @@ Any : CONST
 %%
 
 void yyerror(const char* s) {
-    std::cerr << "Parse Error: " << s << std::endl;
+    err("parser") << s << std::endl;
     std::exit(1);
 }
