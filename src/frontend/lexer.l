@@ -9,7 +9,7 @@ P_BLOCK_COMMENT         \/\*(.|\r|\n)*\*\/
 P_LINE_COMMENT          \/\/.*(\r\n|\r|\n)
 P_WHITESPACE            (\s|[ ]|\r|\n)*
 P_IDENTIFIER            [A-Za-z_][A-Za-z0-9_]*
-P_VALUE_INT             ([1-9]\d*|0)|(0[Xx][0-9A-Fa-f]+)|(0[0-7]+)
+P_VALUE_INT             (0[Xx][0-9A-Fa-f]+)|(0[0-7]+)|([1-9]\d*|0)
 P_VALUE_FLOAT_DEC       (((\d*\.\d+)|(\d+\.))([Ee][+-]?\d+)?)|(\d+([Ee][+-]?\d+))
 P_VALUE_FLOAT_HEX       0[Xx]((([0-9A-Fa-f]*\.[0-9A-Fa-f]+)|([0-9A-Fa-f]+\.))([Pp][+-]?\d+)|[0-9A-Fa-f]+([Pp][+-]?\d+))
 
@@ -196,6 +196,13 @@ P_VALUE_FLOAT_HEX       0[Xx]((([0-9A-Fa-f]*\.[0-9A-Fa-f]+)|([0-9A-Fa-f]+\.))([P
     std::string identifier = yytext;
     log("lexer") << "IDENTIFIER" << std::setw(10) << identifier << std::endl;
     return IDENTIFIER;
+}
+
+
+
+"." {
+    err("lexer") << "cannot parse token" << std::endl;
+    std::exit(1);
 }
 
 %%
