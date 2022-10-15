@@ -1,14 +1,20 @@
 #include <iostream>
-#include "lexer.h"
+#include <stdio.h>
+#include "log.h"
+#include "parser.h"
 
-extern int chars;
-extern int lines;
+int main(int argc, char *argv[]) {
+    log("main") << "SysY compiler" << std::endl;
 
-int main() {
-    yylex();
+    // 将标准输入重定向到给定文件
+    if (argc >= 2) {
+        log("main") << "read from file: " << argv[1] << std::endl;
+        freopen(argv[1], "r", stdin);
+    } else {
+        log("main") << "using standard input" << std::endl;
+    }
 
-    std::cout << chars << std::endl;
-    std::cout << lines << std::endl;
+    yyparse();
 
     return 0;
 }
