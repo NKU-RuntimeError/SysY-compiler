@@ -1,4 +1,4 @@
-#define P_BLOCK_COMMENT         R"(\/\*(.|\r|\n)*\*\/)"
+#define P_BLOCK_COMMENT         R"(\/\*(.|\r|\n)*?\*\/)"
 #define P_LINE_COMMENT          R"(\/\/.*(\r\n|\r|\n))"
 #define P_WHITESPACE            R"([\t ]+)"
 #define P_NEWLINE               R"(\r\n|\r|\n)"
