@@ -7,6 +7,8 @@
 #define P_VALUE_FLOAT_DEC       R"((((\d*\.\d+)|(\d+\.))([Ee][+-]?\d+)?)|(\d+([Ee][+-]?\d+)))"
 #define P_VALUE_FLOAT_HEX       R"(0[Xx]((([0-9A-Fa-f]*\.[0-9A-Fa-f]+)|([0-9A-Fa-f]+\.))([Pp][+-]?\d+)|[0-9A-Fa-f]+([Pp][+-]?\d+)))"
 
+static SymbolTable symbolTable;
+
 inline static void lexerLog(const std::string &token, const std::string &lexeme) {
     log("lexer") <<
                  std::setw(20) << token <<

@@ -4,6 +4,7 @@
 #include <mutex>
 #include <iomanip>
 #include "log.h"
+#include "symbol_table.h"
 #include "lexer.h"
 
 // 由于我们需要从语法分析器的头文件中得到所有token值
