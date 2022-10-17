@@ -7,13 +7,13 @@
 #define P_VALUE_FLOAT_DEC       R"((((\d*\.\d+)|(\d+\.))([Ee][+-]?\d+)?)|(\d+([Ee][+-]?\d+)))"
 #define P_VALUE_FLOAT_HEX       R"(0[Xx]((([0-9A-Fa-f]*\.[0-9A-Fa-f]+)|([0-9A-Fa-f]+\.))([Pp][+-]?\d+)|[0-9A-Fa-f]+([Pp][+-]?\d+)))"
 
-inline static void lexerLog(const std::string& token, const std::string& lexeme) {
+inline static void lexerLog(const std::string &token, const std::string &lexeme) {
     log("lexer") <<
-    std::setw(20) << token <<
-    std::setw(20) << lexeme <<
-    std::setw(10) << currLine <<
-    std::setw(10) << currCol <<
-    std::endl;
+                 std::setw(20) << token <<
+                 std::setw(20) << lexeme <<
+                 std::setw(10) << currLine <<
+                 std::setw(10) << currCol <<
+                 std::endl;
 }
 
 #define T_CALLBACK [](const std::string &str) -> std::optional<int>
