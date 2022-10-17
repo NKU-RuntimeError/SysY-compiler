@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 #
 
 option(LOG_OUTPUT "show log info" OFF)
+option(TEST_LEXER "test lexer using the lexer test file" OFF)
 
 #
 # frontend part
@@ -55,4 +56,21 @@ add_executable(sysy_compiler
 target_include_directories(sysy_compiler PRIVATE ${HEADERS})
 
 target_link_libraries(sysy_compiler ${llvm_libs})
+
+#
+# testing
+#
+
+enable_testing()
+
+if(TEST_LEXER)
+    function(add_lexer_test test_name file_name)
+        add_test(NAME ${test_name} COMMAND
+                sysy_compiler ${CMAKE_CURRENT_SOURCE_DIR}/test/lexer/${file_name}
+                )
+    endfunction()
+    add_lexer_test(lexer_test_1 1.sy)
+    add_lexer_test(lexer_test_2 2.sy)
+endif()
+
 
