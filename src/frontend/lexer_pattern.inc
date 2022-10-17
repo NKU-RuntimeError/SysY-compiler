@@ -14,12 +14,15 @@ inline static void lexerLog(
         const std::string &lexeme = "",
         void *ptr = nullptr
 ) {
-    log("lexer") << std::setw(20) << token <<
-                 std::setw(20) << lexeme <<
-                 std::setw(10) << currLine <<
-                 std::setw(10) << currCol <<
-                 std::setw(20) << (ptr ? ptr : "") <<
-                 std::endl;
+    auto &stream = log("lexer");
+    stream << std::setw(20) << token <<
+              std::setw(20) << lexeme <<
+              std::setw(10) << currLine <<
+              std::setw(10) << currCol;
+    if (ptr) {
+        stream << std::setw(20) << ptr;
+    }
+    stream << std::endl;
 }
 
 #define T_CALLBACK [](const std::string &str) -> std::optional<int>
