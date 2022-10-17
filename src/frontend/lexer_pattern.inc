@@ -9,12 +9,16 @@
 
 static SymbolTable symbolTable;
 
-inline static void lexerLog(const std::string &token, const std::string &lexeme) {
-    log("lexer") <<
-                 std::setw(20) << token <<
+inline static void lexerLog(
+        const std::string &token,
+        const std::string &lexeme = "",
+        void *ptr = nullptr
+) {
+    log("lexer") << std::setw(20) << token <<
                  std::setw(20) << lexeme <<
                  std::setw(10) << currLine <<
                  std::setw(10) << currCol <<
+                 std::setw(20) << (ptr ? ptr : "") <<
                  std::endl;
 }
 
@@ -31,6 +35,7 @@ static Pattern patterns[]{
             return std::nullopt;
         }},
         {P_BLOCK_COMMENT,   T_CALLBACK {
+            lexerLog("BLOCK_COMMENT");
             size_t newLineCount = std::count_if(
                     str.begin(),
                     str.end(),
@@ -45,6 +50,7 @@ static Pattern patterns[]{
             return std::nullopt;
         }},
         {P_LINE_COMMENT,    T_CALLBACK {
+            lexerLog("LINE_COMMENT");
             currLine++;
             currCol = 1;
             return std::nullopt;
@@ -188,11 +194,13 @@ static Pattern patterns[]{
             return SEMICOLON;
         }},
         {R"(\{)",           T_CALLBACK {
+            symbolTable.push();
             lexerLog("LBRACE", str);
             currCol += str.length();
             return LBRACE;
         }},
         {R"(\})",           T_CALLBACK {
+            symbolTable.pop();
             lexerLog("RBRACE", str);
             currCol += str.length();
             return RBRACE;
@@ -234,7 +242,12 @@ static Pattern patterns[]{
             return VALUE_INT;
         }},
         {P_IDENTIFIER,      T_CALLBACK {
-            lexerLog("IDENTIFIER", str);
+            auto ptr = symbolTable.lookup(str);
+            if (!ptr) {
+                ptr = (llvm::Value *) new char[0];
+                symbolTable.insert(str, ptr);
+            }
+            lexerLog("IDENTIFIER", str, ptr);
             currCol += str.length();
             return IDENTIFIER;
         }},
