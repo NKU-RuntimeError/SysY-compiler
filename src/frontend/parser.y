@@ -28,6 +28,9 @@ void yyerror(const char* s);
 
 %%
 
+compile_unit_opt : compile_unit
+                 | /* empty */
+                 ;
 compile_unit : compile_unit compile_unit_element
              | compile_unit_element
              ;
