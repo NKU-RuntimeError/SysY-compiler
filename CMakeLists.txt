@@ -20,7 +20,8 @@ set(FRONTEND src/frontend)
 # https://cmake.org/cmake/help/latest/module/FindBISON.html
 find_package(BISON)
 bison_target(SysY_parser ${FRONTEND}/parser.y ${CMAKE_CURRENT_BINARY_DIR}/parser.cpp
-        DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h)
+        DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h
+        COMPILE_FLAGS "-Wcounterexamples")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # find llvm package
