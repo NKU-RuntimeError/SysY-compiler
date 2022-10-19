@@ -88,7 +88,7 @@ func_type : TYPE_VOID
 	  | TYPE_INT
 	  | TYPE_FLOAT
           ;
-func_arg_list : func_arg_list func_arg
+func_arg_list : func_arg_list COMMA func_arg
               | func_arg
               | /* empty */
               ;
@@ -137,7 +137,7 @@ unary_expr : primary_expr
            | MINUS unary_expr
            | NOT unary_expr
            ;
-func_param_list : func_param_list expr
+func_param_list : func_param_list COMMA expr
                 | expr
                 | /* empty */
                 ;
