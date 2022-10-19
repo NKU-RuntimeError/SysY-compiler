@@ -8,6 +8,19 @@ extern int yyparse();
 void yyerror(const char* s);
 %}
 
+// 在变量声明和函数声明，由于前序均为 TYPENAME IDENTIFIER
+// 因此在解析到TYPENAME时，无法确定reduce到哪一个产生式，因此会产生reduce/reduce冲突
+// 本质原因是因为bison是LR(1)的解析器，只有一个lookahaed的token
+// bison手册给出的解决方案是开启glr模式，在这种模式下，bison会对每条可能的分支都进行遍历
+// 正确的分支继续向下执行，错误的分支停止执行
+// 由于在看到括号后，即可确定是变量声明还是函数声明，因此仍为线性时间复杂度。
+// 参考资料：
+// https://www.gnu.org/software/bison/manual/html_node/Simple-GLR-Parsers.html
+// https://www.gnu.org/software/bison/manual/html_node/GLR-Parsers.html
+
+%glr-parser
+%expect-rr 2
+
 %token CONST
 %token COMMA
 %token SEMICOLON
