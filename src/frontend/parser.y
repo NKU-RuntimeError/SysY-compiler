@@ -26,6 +26,14 @@ void yyerror(const char* s);
 %token LT LE GT GE EQ NE
 %token AND OR
 
+// 用于解决if-else的shift/reduce冲突
+// 参考资料：
+// https://www.gnu.org/software/bison/manual/html_node/Shift_002fReduce.html
+// https://github.com/shm0214/2022NKUCS-Compilers-Lab/blob/lab7/src/parser.y
+
+%precedence THEN
+%precedence ELSE
+
 %%
 
 compile_unit_opt : compile_unit
@@ -109,7 +117,7 @@ block_element : decl
 stmt : lval ASSIGN expr SEMICOLON
      | expr SEMICOLON
      | block
-     | IF LPAREN condition RPAREN stmt
+     | IF LPAREN condition RPAREN stmt %prec THEN
      | IF LPAREN condition RPAREN stmt ELSE stmt
      | WHILE LPAREN condition RPAREN stmt
      | BREAK SEMICOLON
