@@ -1,5 +1,6 @@
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
+#include "AST.h"
 #include "log.h"
 #include "parser.h"
 
@@ -15,6 +16,11 @@ int main(int argc, char *argv[]) {
     }
 
     yyparse();
+
+    log("main") << "final AST root: " << AST::root << std::endl;
+
+    // 释放AST占用的内存
+    Memory::freeAll();
 
     return 0;
 }
