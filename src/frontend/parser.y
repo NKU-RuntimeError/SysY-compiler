@@ -8,6 +8,11 @@ extern int yyparse();
 void yyerror(const char* s);
 %}
 
+%code requires {
+#include "mem.h"
+#include "AST.h"
+}
+
 // 在变量声明和函数声明，由于前序均为 TYPENAME IDENTIFIER
 // 因此在解析到TYPENAME时，无法确定reduce到哪一个产生式，因此会产生reduce/reduce冲突
 // 本质原因是因为bison是LR(1)的解析器，只有一个lookahaed的token
@@ -21,11 +26,17 @@ void yyerror(const char* s);
 %glr-parser
 %expect-rr 2
 
+%union {
+    std::string *strType;
+    AST::CompileUnit *compileUnitType;
+}
+// TODO: 增加更多类型，例：AST::Expr *exprType;
+
 %token CONST
 %token COMMA
 %token SEMICOLON
 %token TYPE_INT TYPE_FLOAT TYPE_VOID
-%token IDENTIFIER
+%token <strType> IDENTIFIER
 %token LBRACE RBRACE
 %token LBRACKET RBRACKET
 %token LPAREN RPAREN
@@ -33,11 +44,14 @@ void yyerror(const char* s);
 %token IF ELSE
 %token WHILE BREAK CONTINUE
 %token RETURN
-%token VALUE_INT VALUE_FLOAT
+%token <strType> VALUE_INT VALUE_FLOAT
 %token PLUS MINUS NOT
 %token MUL DIV MOD
 %token LT LE GT GE EQ NE
 %token AND OR
+
+%nterm <compileUnitType> compile_unit_opt compile_unit compile_unit_element
+// TODO: 增加更多非终结符类型，方便在语义动作中构建AST 例：%nterm <exprType> xxx
 
 // 用于解决if-else的shift/reduce冲突
 // 参考资料：
@@ -47,14 +61,34 @@ void yyerror(const char* s);
 %precedence THEN
 %precedence ELSE
 
+%start compile_unit_opt
+
 %%
 
-compile_unit_opt : compile_unit
-                 | /* empty */
-                 ;
-compile_unit : compile_unit compile_unit_element
-             | compile_unit_element
-             ;
+compile_unit_opt
+    : compile_unit {
+	AST::root = $1;
+	log("parser") << "set root to: " << $1 << std::endl;
+    }
+    | /* empty */ {
+    	AST::root = Memory::make<AST::CompileUnit>();
+	log("parser") << "empty compile_unit, so the root is empty" << std::endl;
+    }
+    ;
+
+compile_unit
+    : compile_unit compile_unit_element {
+	$1->compileElements.emplace_back($2);
+    	$$ = $1;
+	log("parser") << "recursive merge compile_unit: " << $1 << ", " << $2 << std::endl;
+    }
+    | compile_unit_element {
+        $$ = Memory::make<AST::CompileUnit>();
+        $$->compileElements.emplace_back($1);
+    	log("parser") << "lifting compile_unit_element to compile_unit: " << $1 << std::endl;
+    }
+    ;
+// TODO: 增加下列产生式的语义动作
 compile_unit_element : decl
                      | func_def
                      ;
