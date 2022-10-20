@@ -120,6 +120,7 @@ func_arg_array : func_arg_array LBRACKET const_expr RBRACKET
                | IDENTIFIER LBRACKET RBRACKET
                ;
 block : LBRACE block_inner RBRACE
+      | LBRACE RBRACE
       ;
 block_inner : block_inner block_element
             | block_element
