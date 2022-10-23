@@ -11,12 +11,18 @@
 // 使用struct是因为默认权限为public，可以直接访问成员变量、成员函数
 
 // TODO: 增加更多基类，如Expression、Statement，更清晰地表达继承关系
+struct ConstVariableDef;
+struct VariableDef;
+struct FunctionArgument;
 
 namespace AST {
     struct Base {
         virtual ~Base() = default;
     };
 
+    struct Expr : Base {
+
+    };
     struct CompileUnit : Base {
         // 存储：常量、变量声明 或 函数定义
         std::vector<Base *> compileElements;
@@ -27,7 +33,7 @@ namespace AST {
         Typename type;
         // 存储常量定义，由于一个声明可以定义多个常量，所以使用vector
         // 例 int a = 1, b = 2;，constVariableDef中存储的就是"a = 1"
-        std::vector<Base *> constVariableDefs;
+        std::vector<ConstVariableDef *> constVariableDefs;
     };
 
     struct ConstVariableDef : Base {
@@ -44,7 +50,7 @@ namespace AST {
 // 同ConstVariableDecl和ConstVariableDef
     struct VariableDecl : Base {
         Typename type;
-        std::vector<Base *> variableDefs;
+        std::vector<VariableDef *> variableDefs;
     };
 
     struct VariableDef : Base {
@@ -56,7 +62,7 @@ namespace AST {
     struct FunctionDef : Base {
         Typename returnType;
         std::string name;
-        std::vector<Base *> arguments;
+        std::vector<FunctionArgument *> arguments;
         Base *body;
     };
 

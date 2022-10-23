@@ -28,7 +28,11 @@ void yyerror(const char* s);
 
 %union {
     std::string *strType;
+    AST::Base *noneType;
     AST::CompileUnit *compileUnitType;
+    AST::ConstVariableDecl *constVarType;
+    AST::ConstVariableDef *constVarName;
+    AST::FunctionDef *functionType;
 }
 // TODO: 增加更多类型，例：AST::Expr *exprType;
 
@@ -50,7 +54,13 @@ void yyerror(const char* s);
 %token LT LE GT GE EQ NE
 %token AND OR
 
-%nterm <compileUnitType> compile_unit_opt compile_unit compile_unit_element
+%nterm <compileUnitType> compile_unit_opt compile_unit
+%nterm <constVarType> decl const_var_decl var_decl const_var_def_list
+%nterm <constVarName> const_var_def array
+%nterm <functionType> func_def
+//没想好要怎么分类的一律放到noneType中
+%nterm <noneType> compile_unit_element var_type const_expr
+
 // TODO: 增加更多非终结符类型，方便在语义动作中构建AST 例：%nterm <exprType> xxx
 
 // 用于解决if-else的shift/reduce冲突
@@ -89,25 +99,56 @@ compile_unit
     }
     ;
 // TODO: 增加下列产生式的语义动作
-compile_unit_element : decl
-                     | func_def
-                     ;
-decl : const_var_decl
-     | var_decl
-     ;
-const_var_decl : CONST var_type const_var_def_list SEMICOLON
+compile_unit_element
+    : decl{
+	$$=$1;
+    }
+    | func_def{
+        $$=$1;
+    }
+    ;
+decl
+    : const_var_decl{
+	$$=$1;
+    }
+    | var_decl{
+     	$$=$1;
+    }
+    ;
+const_var_decl : CONST var_type const_var_def_list SEMICOLON{
+			$$=$3;
+			$$->type=$2;
+		}
                ;
-const_var_def_list : const_var_def_list COMMA const_var_def
-                   | const_var_def
+const_var_def_list : const_var_def_list COMMA const_var_def{
+		     	$1->constVariableDefs.emplace_back($3);
+			$$=$1;
+		    }
+                   | const_var_def{
+                   	$$ = Memory::make<AST::ConstVariableDecl>();
+                   	$$->constVariableDefs.emplace_back($1);
+                   }
                    ;
-var_type : TYPE_INT
-         | TYPE_FLOAT
+var_type : TYPE_INT{
+	    $$=Typename::INT;
+	 }
+         | TYPE_FLOAT{
+            $$=Typename::FLOAT;
+         }
          ;
-const_var_def : IDENTIFIER ASSIGN const_expr
-              | array ASSIGN const_initializer_list
+const_var_def : IDENTIFIER ASSIGN const_expr{
+
+	      }
+              | array ASSIGN const_initializer_list{
+
+              }
               ;
-array : array LBRACKET const_expr RBRACKET
-      | IDENTIFIER LBRACKET const_expr RBRACKET
+array : array LBRACKET const_expr RBRACKET{
+
+      }
+      | IDENTIFIER LBRACKET const_expr RBRACKET{
+
+      }
       ;
 const_initializer_list : LBRACE const_initializer_list_inner RBRACE
                        ;
