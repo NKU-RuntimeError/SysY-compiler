@@ -9,6 +9,7 @@ void yyerror(const char* s);
 %}
 
 %code requires {
+#include "type.h"
 #include "mem.h"
 #include "AST.h"
 }
@@ -33,6 +34,7 @@ void yyerror(const char* s);
     AST::ConstVariableDecl *constVarType;
     AST::ConstVariableDef *constVarName;
     AST::FunctionDef *functionType;
+    Typename typenameType;
 }
 // TODO: 增加更多类型，例：AST::Expr *exprType;
 
@@ -58,8 +60,9 @@ void yyerror(const char* s);
 %nterm <constVarType> decl const_var_decl var_decl const_var_def_list
 %nterm <constVarName> const_var_def array
 %nterm <functionType> func_def
+%nterm <typenameType> var_type func_type
 //没想好要怎么分类的一律放到noneType中
-%nterm <noneType> compile_unit_element var_type const_expr
+%nterm <noneType> compile_unit_element const_expr
 
 // TODO: 增加更多非终结符类型，方便在语义动作中构建AST 例：%nterm <exprType> xxx
 
