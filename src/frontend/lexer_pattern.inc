@@ -7,8 +7,6 @@
 #define P_VALUE_FLOAT_DEC       R"((((\d*\.\d+)|(\d+\.))([Ee][+-]?\d+)?)|(\d+([Ee][+-]?\d+)))"
 #define P_VALUE_FLOAT_HEX       R"(0[Xx]((([0-9A-Fa-f]*\.[0-9A-Fa-f]+)|([0-9A-Fa-f]+\.))([Pp][+-]?\d+)|[0-9A-Fa-f]+([Pp][+-]?\d+)))"
 
-static SymbolTable symbolTable;
-
 inline static void lexerLog(
         const std::string &token,
         const std::string &lexeme = "",
@@ -197,13 +195,11 @@ static Pattern patterns[]{
             return SEMICOLON;
         }},
         {R"(\{)",           T_CALLBACK {
-            symbolTable.push();
             lexerLog("LBRACE", str);
             currCol += str.length();
             return LBRACE;
         }},
         {R"(\})",           T_CALLBACK {
-            symbolTable.pop();
             lexerLog("RBRACE", str);
             currCol += str.length();
             return RBRACE;
@@ -230,27 +226,26 @@ static Pattern patterns[]{
         }},
 
         {P_VALUE_FLOAT_HEX, T_CALLBACK {
+            yylval.strType = Memory::make<std::string>(str);
             lexerLog("VALUE_FLOAT", str);
             currCol += str.length();
             return VALUE_FLOAT;
         }},
         {P_VALUE_FLOAT_DEC, T_CALLBACK {
+            yylval.strType = Memory::make<std::string>(str);
             lexerLog("VALUE_FLOAT", str);
             currCol += str.length();
             return VALUE_FLOAT;
         }},
         {P_VALUE_INT,       T_CALLBACK {
+            yylval.strType = Memory::make<std::string>(str);
             lexerLog("VALUE_INT", str);
             currCol += str.length();
             return VALUE_INT;
         }},
         {P_IDENTIFIER,      T_CALLBACK {
-            auto ptr = symbolTable.lookup(str);
-            if (!ptr) {
-                ptr = (llvm::Value *) new char[0];
-                symbolTable.insert(str, ptr);
-            }
-            lexerLog("IDENTIFIER", str, ptr);
+            yylval.strType = Memory::make<std::string>(str);
+            lexerLog("IDENTIFIER", str);
             currCol += str.length();
             return IDENTIFIER;
         }},
