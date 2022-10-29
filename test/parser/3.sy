@@ -3,21 +3,6 @@
     // const variable
     const int var3 = 3;  //3.常量
 
-    void if_stmt() {    //4.if语句
-      if (var1 == 1) {
-        var1 = 2;
-      } else {
-        var1 = 3;
-      }
-    }
-
-    void for_stmt() {   //5.for语句
-      int i;
-      for (i = 0; i < 10; i++) {
-        var1 = i;
-      }
-    }
-
     void while_stmt() {    //6.while语句
       while (var1 == 1) {
         var1 = 2;

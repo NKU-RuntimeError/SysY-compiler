@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(LOG_OUTPUT "show log info" OFF)
 option(TEST_LEXER "test lexer using the lexer test file" OFF)
-
+option(TEST_PARSER "test parser using test file" OFF)
 #
 # frontend part
 #
@@ -74,4 +74,12 @@ if(TEST_LEXER)
     add_lexer_test(lexer_test_2 2.sy)
 endif()
 
+if(TEST_PARSER)
+    function(add_parser_test test_name file_name)
+        add_test(NAME ${test_name} COMMAND
+                sysy_compiler ${CMAKE_CURRENT_SOURCE_DIR}/test/parser/${file_name}
+                )
+    endfunction()
+    add_parser_test(parser_test_1 3.sy)
+endif()
 
