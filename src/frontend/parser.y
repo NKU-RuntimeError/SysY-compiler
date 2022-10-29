@@ -300,11 +300,13 @@ var_def : IDENTIFIER{
         log("parser") << "give var_def name and value" << std::endl;
     }
     | array{
+    	$$ = Memory::make<AST::VariableDef>();
 	$$->name = $1->name;
 	$$->size = $1->size;
 	log("parser") << "give var_def name of array" << std::endl;
     }
     | array ASSIGN initializer_list{
+    	$$ = Memory::make<AST::VariableDef>();
 	$$->name = $1->name;
 	$$->size = $1->size;
 	$$->values = $3->values;
@@ -382,11 +384,13 @@ func_arg_list : func_arg_list COMMA func_arg{
     }
     ;
 func_arg : var_type IDENTIFIER{
+	$$ = Memory::make<AST::FunctionArgument>();
 	$$->type = $1;
 	$$->name = *$2;
 	log("parser") << "func_arg is a var" << std::endl;
     }
     | var_type func_arg_array{
+    	$$ = Memory::make<AST::FunctionArgument>();
 	$$->name = $2->name;
 	$$->size = $2->size;
 	$$->type = $1;
