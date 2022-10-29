@@ -4,10 +4,10 @@
 namespace Memory {
     std::vector<std::function<void()>> destructors;
 
-    void freeAll() {
-        for (const auto &destructor: destructors) {
-            destructor();
-        }
-        destructors.clear();
-    }
+//    void freeAll() {
+//        for (const auto &destructor: destructors) {
+//            destructor();
+//        }
+//        destructors.clear();
+//    }
 }
