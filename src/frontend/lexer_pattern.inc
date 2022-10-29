@@ -57,53 +57,53 @@ static Pattern patterns[]{
             return std::nullopt;
         }},
 
-        {"const",           T_CALLBACK {
+        {R"(const\b)",           T_CALLBACK {
             lexerLog("CONST", str);
             currCol += str.length();
             return CONST;
         }},
 
-        {"int",             T_CALLBACK {
+        {R"(int\b)",             T_CALLBACK {
             lexerLog("TYPE_INT", str);
             currCol += str.length();
             return TYPE_INT;
         }},
-        {"float",           T_CALLBACK {
+        {R"(float\b)",           T_CALLBACK {
             lexerLog("TYPE_FLOAT", str);
             currCol += str.length();
             return TYPE_FLOAT;
         }},
-        {"void",            T_CALLBACK {
+        {R"(void\b)",            T_CALLBACK {
             lexerLog("TYPE_VOID", str);
             currCol += str.length();
             return TYPE_VOID;
         }},
-        {"if",              T_CALLBACK {
+        {R"(if\b)",              T_CALLBACK {
             lexerLog("IF", str);
             currCol += str.length();
             return IF;
         }},
-        {"else",            T_CALLBACK {
+        {R"(else\b)",            T_CALLBACK {
             lexerLog("ELSE", str);
             currCol += str.length();
             return ELSE;
         }},
-        {"while",           T_CALLBACK {
+        {R"(while\b)",           T_CALLBACK {
             lexerLog("WHILE", str);
             currCol += str.length();
             return WHILE;
         }},
-        {"break",           T_CALLBACK {
+        {R"(break\b)",           T_CALLBACK {
             lexerLog("BREAK", str);
             currCol += str.length();
             return BREAK;
         }},
-        {"continue",        T_CALLBACK {
+        {R"(continue\b)",        T_CALLBACK {
             lexerLog("CONTINUE", str);
             currCol += str.length();
             return CONTINUE;
         }},
-        {"return",          T_CALLBACK {
+        {R"(return\b)",          T_CALLBACK {
             lexerLog("RETURN", str);
             currCol += str.length();
             return RETURN;
