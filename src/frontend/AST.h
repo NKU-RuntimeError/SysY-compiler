@@ -255,6 +255,7 @@ namespace AST {
 // 根节点
 namespace AST {
     extern Base *root;
+    void show();
 }
 
 #endif //SYSY_COMPILER_FRONTEND_AST_H

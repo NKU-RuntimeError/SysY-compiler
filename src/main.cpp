@@ -20,6 +20,9 @@ int main(int argc, char *argv[]) {
 
     log("main") << "final AST root: " << AST::root << std::endl;
 
+    // 打印AST
+    AST::show();
+
     // 释放AST占用的内存
     Memory::freeAll();
 
