@@ -21,7 +21,8 @@ int main(int argc, char *argv[]) {
     log("main") << "final AST root: " << AST::root << std::endl;
 
     // 打印AST
-    AST::show();
+    // 在long_code2 testcase中会出现树过大的情况，导致打印出来的AST过长，因此暂时不打印树结构
+//    AST::show();
 
     // 释放AST占用的内存
     Memory::freeAll();
