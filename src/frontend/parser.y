@@ -34,6 +34,8 @@ void yyerror(const char* s);
     AST::Decl *declType;
     AST::CompileUnit *compileUnitType;
     AST::InitializerElement *initializerElementType;
+    AST::InitializerList *initializerListType;
+    AST::Array *arrayType;
     AST::ConstVariableDef *constVariableDefType;
     AST::ConstVariableDefList *constVariableDefListType;
     AST::ConstVariableDecl *constVariableDeclType;
@@ -54,9 +56,12 @@ void yyerror(const char* s);
     AST::ContinueStmt *continueStmtType;
     AST::ReturnStmt *returnStmtType;
     AST::UnaryExpr *unaryExprType;
+    AST::FunctionParamList *functionParamListType;
     AST::FunctionCallExpr *functionCallExprType;
     AST::BinaryExpr *binaryExprType;
     AST::NumberExpr *numberExprType;
+    AST::NullStmt *nullStmtType;
+    AST::VariableExpr *variableExprType;
     Typename typenameType;
     Operator operatorType;
     std::string *strType;
@@ -95,18 +100,46 @@ void yyerror(const char* s);
 
 %start compile_unit_opt
 
-%nterm <compileUnitType> compile_unit_opt compile_unit compile_unit_element
+%nterm <compileUnitType> compile_unit_opt compile_unit
+%nterm <baseType> compile_unit_element
+%nterm <declType> decl
+%nterm <constVariableDeclType> const_var_decl
+%nterm <constVariableDefListType> const_var_def_list
+%nterm <typenameType> var_type
+%nterm <constVariableDefType> const_var_def
+%nterm <arrayType> identifier_or_array
+%nterm <initializerListType> const_initializer_list const_initializer_list_inner
+%nterm <initializerElementType> const_initializer_element
+%nterm <variableDeclType> var_decl
+%nterm <variableDefListType> var_def_list
+%nterm <variableDefType> var_def
+%nterm <initializerListType> initializer_list initializer_list_inner
+%nterm <initializerElementType> initializer_element
+%nterm <functionDefType> func_def
+%nterm <typenameType> func_type
+%nterm <functionArgListType> func_arg_list
+%nterm <functionArgType> func_arg func_arg_identifier_or_array func_arg_array
+%nterm <blockType> block block_inner
+%nterm <baseType> block_element
+%nterm <stmtType> stmt
+%nterm <exprType> expr
+%nterm <exprType> condition
+%nterm <lValueType> lval
+%nterm <exprType> primary_expr
+%nterm <exprType> number
+%nterm <exprType> unary_expr
+%nterm <functionParamListType> func_param_list
+%nterm <exprType> mul_div_mod_expr add_sub_expr relation_expr equal_relation_expr logical_and_expr logical_or_expr
+%nterm <exprType> const_expr
 
 %%
 
 compile_unit_opt
     : compile_unit {
 	AST::root = $1;
-	log("parser") << "set root to: " << $1 << std::endl;
     }
     | /* empty */ {
     	AST::root = Memory::make<AST::CompileUnit>();
-	log("parser") << "empty compile_unit, so the root is empty" << std::endl;
     }
     ;
 
@@ -114,151 +147,556 @@ compile_unit
     : compile_unit compile_unit_element {
 	$1->compileElements.emplace_back($2);
     	$$ = $1;
-	log("parser") << "recursive merge compile_unit: " << $1 << ", " << $2 << std::endl;
     }
     | compile_unit_element {
         $$ = Memory::make<AST::CompileUnit>();
         $$->compileElements.emplace_back($1);
-    	log("parser") << "lifting compile_unit_element to compile_unit: " << $1 << std::endl;
     }
     ;
-// TODO: 增加下列产生式的语义动作
-compile_unit_element : decl
-                     | func_def
-                     ;
-decl : const_var_decl
-     | var_decl
-     ;
-const_var_decl : CONST var_type const_var_def_list SEMICOLON
-               ;
-const_var_def_list : const_var_def_list COMMA const_var_def
-                   | const_var_def
-                   ;
-var_type : TYPE_INT
-         | TYPE_FLOAT
-         ;
-const_var_def : identifier_or_array ASSIGN const_initializer_element
-              ;
-identifier_or_array : identifier_or_array LBRACKET const_expr RBRACKET
-                    | IDENTIFIER
-                    ;
-const_initializer_list : LBRACE const_initializer_list_inner RBRACE
-                       ;
-const_initializer_list_inner : const_initializer_list_inner COMMA const_initializer_element
-                             | const_initializer_element
-                             | /* empty */
-                             ;
-const_initializer_element : const_expr
-                          | const_initializer_list
-                          ;
-var_decl : var_type var_def_list SEMICOLON
-         ;
-var_def_list : var_def_list COMMA var_def
-             | var_def
-             ;
-var_def : identifier_or_array
-        | identifier_or_array ASSIGN initializer_element
-        ;
-initializer_list : LBRACE initializer_list_inner RBRACE
-                 ;
-initializer_list_inner : initializer_list_inner COMMA initializer_element
-                       | initializer_element
-                       | /* empty */
-                       ;
-initializer_element : expr
-                         | initializer_list
-                         ;
-func_def : func_type IDENTIFIER LPAREN func_arg_list RPAREN block
-         ;
-func_type : TYPE_VOID
-	  | TYPE_INT
-	  | TYPE_FLOAT
-          ;
-func_arg_list : func_arg_list COMMA func_arg
-              | func_arg
-              | /* empty */
-              ;
-func_arg : var_type func_arg_identifier_or_array
-         ;
-func_arg_identifier_or_array : IDENTIFIER
-                             | func_arg_array
-                             ;
-func_arg_array : func_arg_array LBRACKET const_expr RBRACKET
-               | IDENTIFIER LBRACKET RBRACKET
-               ;
-block : LBRACE block_inner RBRACE
-      | LBRACE RBRACE
-      ;
-block_inner : block_inner block_element
-            | block_element
-            ;
-block_element : decl
-              | stmt
-              ;
-stmt : lval ASSIGN expr SEMICOLON
-     | expr SEMICOLON
-     | SEMICOLON
-     | block
-     | IF LPAREN condition RPAREN stmt %prec THEN
-     | IF LPAREN condition RPAREN stmt ELSE stmt
-     | WHILE LPAREN condition RPAREN stmt
-     | BREAK SEMICOLON
-     | CONTINUE SEMICOLON
-     | RETURN expr SEMICOLON
-     | RETURN SEMICOLON
-     ;
-expr : add_sub_expr
-     ;
-condition : logical_or_expr
-          ;
-lval : lval LBRACKET expr RBRACKET
-     | IDENTIFIER
-     ;
-primary_expr : LPAREN expr RPAREN
-             | lval
-             | number
-             ;
-number : VALUE_INT
-       | VALUE_FLOAT
-       ;
-unary_expr : primary_expr
-           | IDENTIFIER LPAREN func_param_list RPAREN
-           | PLUS unary_expr
-           | MINUS unary_expr
-           | NOT unary_expr
-           ;
-func_param_list : func_param_list COMMA expr
-                | expr
-                | /* empty */
-                ;
-mul_div_mod_expr : unary_expr
-                 | mul_div_mod_expr MUL unary_expr
-                 | mul_div_mod_expr DIV unary_expr
-                 | mul_div_mod_expr MOD unary_expr
-                 ;
-add_sub_expr : mul_div_mod_expr
-             | add_sub_expr PLUS mul_div_mod_expr
-             | add_sub_expr MINUS mul_div_mod_expr
-             ;
-relation_expr : add_sub_expr
-              | relation_expr LT add_sub_expr
-              | relation_expr GT add_sub_expr
-              | relation_expr LE add_sub_expr
-              | relation_expr GE add_sub_expr
-              ;
-equal_relation_expr : relation_expr
-                    | equal_relation_expr EQ relation_expr
-                    | equal_relation_expr NE relation_expr
-                    ;
-logical_and_expr : equal_relation_expr
-                 | logical_and_expr AND equal_relation_expr
-                 ;
-logical_or_expr : logical_and_expr
-                | logical_or_expr OR logical_and_expr
-                ;
-const_expr : add_sub_expr
-           ;
 
+compile_unit_element
+    : decl {
+        $$ = $1;
+    }
+    | func_def {
+        $$ = $1;
+    }
+    ;
+
+decl
+    : const_var_decl {
+        $$ = $1;
+    }
+    | var_decl {
+        $$ = $1;
+    }
+    ;
+
+const_var_decl
+    : CONST var_type const_var_def_list SEMICOLON {
+        $$ = Memory::make<AST::ConstVariableDecl>();
+	$$->type = $2;
+	$$->constVariableDefs = $3->constVariableDefs;
+    }
+    ;
+
+const_var_def_list
+    : const_var_def_list COMMA const_var_def {
+        $1->constVariableDefs.emplace_back($3);
+	$$ = $1;
+    }
+    | const_var_def {
+        $$ = Memory::make<AST::ConstVariableDefList>();
+        $$->constVariableDefs.emplace_back($1);
+    }
+    ;
+
+var_type
+    : TYPE_INT {
+        $$ = Typename::INT;
+    }
+    | TYPE_FLOAT {
+        $$ = Typename::FLOAT;
+    }
+    ;
+
+const_var_def
+    : identifier_or_array ASSIGN const_initializer_element {
+        $$ = Memory::make<AST::ConstVariableDef>();
+        $$->name = $1->name;
+	$$->size = $1->size;
+	$$->initVal = $3;
+    }
+    ;
+
+identifier_or_array
+    : identifier_or_array LBRACKET const_expr RBRACKET {
+        $1->size.emplace_back($3);
+	$$ = $1;
+    }
+    | IDENTIFIER {
+        $$ = Memory::make<AST::Array>();
+	$$->name = *$1;
+    }
+    ;
+
+const_initializer_list
+    : LBRACE const_initializer_list_inner RBRACE {
+        $$ = $2;
+    }
+    ;
+
+const_initializer_list_inner
+    : const_initializer_list_inner COMMA const_initializer_element {
+        $1->elements.emplace_back($3);
+	$$ = $1;
+    }
+    | const_initializer_element {
+        $$ = Memory::make<AST::InitializerList>();
+	$$->elements.emplace_back($1);
+    }
+    | /* empty */ {
+        $$ = Memory::make<AST::InitializerList>();
+    }
+    ;
+
+const_initializer_element
+    : const_expr {
+        $$ = Memory::make<AST::InitializerElement>();
+	$$->element = $1;
+    }
+    | const_initializer_list {
+	$$ = Memory::make<AST::InitializerElement>();
+	$$->element = $1;
+    }
+    ;
+
+var_decl
+    : var_type var_def_list SEMICOLON {
+        $$ = Memory::make<AST::VariableDecl>();
+	$$->type = $1;
+	$$->variableDefs = $2->variableDefs;
+    }
+    ;
+
+var_def_list
+    : var_def_list COMMA var_def {
+	$1->variableDefs.emplace_back($3);
+	$$ = $1;
+    }
+    | var_def {
+        $$ = Memory::make<AST::VariableDefList>();
+        $$->variableDefs.emplace_back($1);
+    }
+    ;
+
+var_def
+    : identifier_or_array {
+        $$ = Memory::make<AST::VariableDef>();
+	$$->name = $1->name;
+	$$->size = $1->size;
+	$$->initVal = nullptr;
+    }
+    | identifier_or_array ASSIGN initializer_element {
+        $$ = Memory::make<AST::VariableDef>();
+	$$->name = $1->name;
+	$$->size = $1->size;
+	$$->initVal = $3;
+    }
+    ;
+
+initializer_list
+    : LBRACE initializer_list_inner RBRACE {
+        $$ = $2;
+    }
+    ;
+
+initializer_list_inner
+    : initializer_list_inner COMMA initializer_element {
+        $1->elements.emplace_back($3);
+	$$ = $1;
+    }
+    | initializer_element {
+        $$ = Memory::make<AST::InitializerList>();
+	$$->elements.emplace_back($1);
+    }
+    | /* empty */ {
+        $$ = Memory::make<AST::InitializerList>();
+    }
+    ;
+
+initializer_element
+    : expr {
+        $$ = Memory::make<AST::InitializerElement>();
+	$$->element = $1;
+    }
+    | initializer_list {
+    	$$ = Memory::make<AST::InitializerElement>();
+	$$->element = $1;
+    }
+    ;
+
+func_def
+    : func_type IDENTIFIER LPAREN func_arg_list RPAREN block {
+        $$ = Memory::make<AST::FunctionDef>();
+	$$->returnType = $1;
+	$$->name = *$2;
+	$$->arguments = $4->arguments;
+	$$->body = $6;
+    }
+    ;
+
+func_type
+    : TYPE_VOID {
+        $$ = Typename::VOID;
+    }
+    | TYPE_INT {
+	$$ = Typename::INT;
+    }
+    | TYPE_FLOAT {
+    	$$ = Typename::FLOAT;
+    }
+    ;
+
+func_arg_list
+    : func_arg_list COMMA func_arg {
+        $1->arguments.emplace_back($3);
+	$$ = $1;
+    }
+    | func_arg {
+        $$ = Memory::make<AST::FunctionArgList>();
+	$$->arguments.emplace_back($1);
+    }
+    | /* empty */ {
+        $$ = Memory::make<AST::FunctionArgList>();
+    }
+    ;
+
+func_arg
+    : var_type func_arg_identifier_or_array {
+        $2->type = $1;
+	$$ = $2;
+    }
+    ;
+
+func_arg_identifier_or_array
+    : IDENTIFIER {
+        $$ = Memory::make<AST::FunctionArg>();
+	$$->name = *$1;
+    }
+    | func_arg_array {
+        $$ = $1;
+    }
+    ;
+
+func_arg_array
+    : func_arg_array LBRACKET const_expr RBRACKET {
+        $1->size.emplace_back($3);
+	$$ = $1;
+    }
+    | IDENTIFIER LBRACKET RBRACKET {
+        $$ = Memory::make<AST::FunctionArg>();
+	$$->name = *$1;
+	$$->size.emplace_back(nullptr);
+    }
+    ;
+
+block
+    : LBRACE block_inner RBRACE {
+        $$ = $2;
+    }
+    | LBRACE RBRACE {
+        $$ = Memory::make<AST::Block>();
+    }
+    ;
+
+block_inner
+    : block_inner block_element {
+        $1->elements.emplace_back($2);
+	$$ = $1;
+    }
+    | block_element {
+        $$ = Memory::make<AST::Block>();
+	$$->elements.emplace_back($1);
+    }
+    ;
+
+block_element
+    : decl {
+        $$ = $1;
+    }
+    | stmt {
+        $$ = $1;
+    }
+    ;
+
+stmt
+    : lval ASSIGN expr SEMICOLON {
+        auto ptr = Memory::make<AST::AssignStmt>();
+	ptr->lValue = $1;
+	ptr->rValue = $3;
+	$$ = ptr;
+    }
+    | expr SEMICOLON {
+        auto ptr = Memory::make<AST::ExprStmt>();
+	ptr->expr = $1;
+	$$ = ptr;
+    }
+    | SEMICOLON {
+        $$ = Memory::make<AST::NullStmt>();
+    }
+    | block {
+    	auto ptr = Memory::make<AST::BlockStmt>();
+	ptr->elements = $1->elements;
+	$$ = ptr;
+    }
+    | IF LPAREN condition RPAREN stmt %prec THEN {
+        auto ptr = Memory::make<AST::IfStmt>();
+	ptr->condition = $3;
+	ptr->thenStmt = $5;
+	ptr->elseStmt = nullptr;
+	$$ = ptr;
+    }
+    | IF LPAREN condition RPAREN stmt ELSE stmt {
+        auto ptr = Memory::make<AST::IfStmt>();
+	ptr->condition = $3;
+	ptr->thenStmt = $5;
+	ptr->elseStmt = $7;
+	$$ = ptr;
+    }
+    | WHILE LPAREN condition RPAREN stmt {
+        auto ptr = Memory::make<AST::WhileStmt>();
+	ptr->condition = $3;
+	ptr->body = $5;
+	$$ = ptr;
+    }
+    | BREAK SEMICOLON {
+        $$ = Memory::make<AST::BreakStmt>();
+    }
+    | CONTINUE SEMICOLON {
+        $$ = Memory::make<AST::ContinueStmt>();
+    }
+    | RETURN expr SEMICOLON {
+        auto ptr = Memory::make<AST::ReturnStmt>();
+	ptr->expr = $2;
+	$$ = ptr;
+    }
+    | RETURN SEMICOLON {
+        auto ptr = Memory::make<AST::ReturnStmt>();
+	ptr->expr = nullptr;
+	$$ = ptr;
+    }
+    ;
+
+expr
+    : add_sub_expr {
+        $$ = $1;
+    }
+    ;
+
+condition
+    : logical_or_expr {
+        $$ = $1;
+    }
+    ;
+
+lval
+    : lval LBRACKET expr RBRACKET {
+   	$1->size.emplace_back($3);
+	$$ = $1;
+    }
+    | IDENTIFIER {
+        $$ = Memory::make<AST::LValue>();
+	$$->name = *$1;
+    }
+    ;
+
+primary_expr
+    : LPAREN expr RPAREN {
+        $$ = $2;
+    }
+    | lval {
+        auto ptr = Memory::make<AST::VariableExpr>();
+	ptr->name = $1->name;
+	ptr->size = $1->size;
+	$$ = ptr;
+    }
+    | number {
+        $$ = $1;
+    }
+    ;
+
+number
+    : VALUE_INT {
+        auto ptr = Memory::make<AST::NumberExpr>();
+	ptr->valueStr = *$1;
+	ptr->type = Typename::INT;
+	$$ = ptr;
+    }
+    | VALUE_FLOAT {
+        auto ptr = Memory::make<AST::NumberExpr>();
+	ptr->valueStr = *$1;
+	ptr->type = Typename::FLOAT;
+	$$ = ptr;
+    }
+    ;
+
+unary_expr
+    : primary_expr {
+        $$ = $1;
+    }
+    | IDENTIFIER LPAREN func_param_list RPAREN {
+        auto ptr = Memory::make<AST::FunctionCallExpr>();
+	ptr->name = *$1;
+	ptr->params = $3->params;
+	$$ = ptr;
+    }
+    | PLUS unary_expr {
+        auto ptr = Memory::make<AST::UnaryExpr>();
+	ptr->op = Operator::ADD;
+	ptr->expr = $2;
+	$$ = ptr;
+    }
+    | MINUS unary_expr {
+        auto ptr = Memory::make<AST::UnaryExpr>();
+	ptr->op = Operator::SUB;
+	ptr->expr = $2;
+	$$ = ptr;
+    }
+    | NOT unary_expr {
+        auto ptr = Memory::make<AST::UnaryExpr>();
+	ptr->op = Operator::NOT;
+	ptr->expr = $2;
+	$$ = ptr;
+    }
+    ;
+
+func_param_list
+    : func_param_list COMMA expr {
+	$1->params.emplace_back($3);
+	$$ = $1;
+    }
+    | expr {
+   	$$ = Memory::make<AST::FunctionParamList>();
+	$$->params.emplace_back($1);
+    }
+    | /* empty */ {
+        $$ = Memory::make<AST::FunctionParamList>();
+    }
+    ;
+
+mul_div_mod_expr
+    : unary_expr {
+        $$ = $1;
+    }
+    | mul_div_mod_expr MUL unary_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::MUL;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | mul_div_mod_expr DIV unary_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::DIV;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | mul_div_mod_expr MOD unary_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::MOD;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    ;
+
+add_sub_expr
+    : mul_div_mod_expr {
+        $$ = $1;
+    }
+    | add_sub_expr PLUS mul_div_mod_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::ADD;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | add_sub_expr MINUS mul_div_mod_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::SUB;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    ;
+
+relation_expr
+    : add_sub_expr {
+        $$ = $1;
+    }
+    | relation_expr LT add_sub_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::LT;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | relation_expr GT add_sub_expr{
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::GT;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | relation_expr LE add_sub_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::LE;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | relation_expr GE add_sub_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::GE;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    ;
+
+equal_relation_expr
+    : relation_expr {
+        $$ = $1;
+    }
+    | equal_relation_expr EQ relation_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::EQ;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    | equal_relation_expr NE relation_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::NE;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    ;
+
+logical_and_expr
+    : equal_relation_expr {
+        $$ = $1;
+    }
+    | logical_and_expr AND equal_relation_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::AND;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    ;
+
+logical_or_expr
+    : logical_and_expr {
+        $$ = $1;
+    }
+    | logical_or_expr OR logical_and_expr {
+        auto ptr = Memory::make<AST::BinaryExpr>();
+	ptr->op = Operator::OR;
+	ptr->lhs = $1;
+	ptr->rhs = $3;
+	$$ = ptr;
+    }
+    ;
+
+const_expr
+    : add_sub_expr {
+        $$ = $1;
+    }
+    ;
 
 %%
 
