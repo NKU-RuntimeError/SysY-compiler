@@ -3,8 +3,9 @@
 #include <regex>
 #include <mutex>
 #include <iomanip>
+#include <utility>
 #include "log.h"
-#include "symbol_table.h"
+#include "mem.h"
 #include "lexer.h"
 
 // 由于我们需要从语法分析器的头文件中得到所有token值
@@ -13,22 +14,32 @@
 #include "parser.h"
 
 struct Pattern {
-    const std::regex regex;
+    const std::string regex;
     const std::function<std::optional<int>(std::string)> callback;
 
     Pattern(
-            std::string pattern,
+            const std::string& pattern,
             std::function<std::optional<int>(std::string)> callback
     );
 };
 
-// 负责拼接一下字符串，其中^用于匹配开头
-inline static std::regex getRegex(const std::string &regex) {
-    return std::regex{"^(" + regex + ")"};
+// 查找前面不是斜杠的括号，替换成非捕获组
+static std::string fixGroup(const std::string &pattern) {
+    std::string dummyPattern = "Z" + pattern;
+    std::string fixedPattern;
+    fixedPattern.reserve(pattern.length());
+    for (int i = 1; i < dummyPattern.length(); i++) {
+        if (dummyPattern[i] == '(' && dummyPattern[i - 1] != '\\') {
+            fixedPattern += "(?:";
+        } else {
+            fixedPattern += dummyPattern[i];
+        }
+    }
+    return fixedPattern;
 }
 
-Pattern::Pattern(std::string pattern, std::function<std::optional<int>(std::string)> callback)
-        : regex(getRegex(pattern)), callback(callback) {}
+Pattern::Pattern(const std::string& pattern, std::function<std::optional<int>(std::string)> callback)
+        : regex(fixGroup(pattern)), callback(std::move(callback)) {}
 
 // 记录行号，列号
 static size_t currLine = 1;
@@ -39,28 +50,42 @@ static size_t currCol = 1;
 // 然后调用其对应的callback，获得token的类型
 #include "lexer_pattern.inc"
 
+// https://stackoverflow.com/questions/34229328/writing-a-very-simple-lexical-analyser-in-c
 std::optional<int> Lexer::getToken() {
-    retry:
-    // 遍历所有规则，找到第一个匹配的规则
-    for (const auto &pattern: patterns) {
-        std::smatch match;
-        if (std::regex_search(rest, match, pattern.regex)) {
 
-            // 由于match只是一个引用，因此我们需要将匹配结果复制出来
-            // 然后在调用的时候传递给callback
-            const std::string &matchStr = match.str(0);
-            std::string copy{matchStr.c_str(), matchStr.length()};
-            rest = match.suffix();
-            if (auto token = pattern.callback(copy)) {
+    static std::once_flag onceFlag;
+
+    std::call_once(onceFlag, [this] {
+        // 按序合并所有正则表达式
+        std::string regexMerge;
+        for (const auto &pattern: patterns) {
+            regexMerge += "(" + pattern.regex + ")|";
+        }
+        // 去除最后一个竖线
+        regexMerge.pop_back();
+        // 编译正则表达式
+        regex = std::regex(regexMerge);
+        it = std::sregex_iterator(input.begin(), input.end(), regex);
+        end = std::sregex_iterator();
+    });
+
+retry:
+    if (it == end) {
+        return std::nullopt;
+    }
+
+    for (int i = 0; i < it->size(); i++) {
+        if ((*it)[i+1].matched) {
+            std::string str = (*it)[i+1].str();
+            it++;
+            if (auto token = patterns[i].callback(str)) {
                 return token;
             }
-
-            // 当前的token已经被吃掉了，因此回到开头重新匹配即可
             goto retry;
         }
     }
 
-    // 如果没有匹配到任何规则，那么就返回空，代表结束。
+    // 无法匹配任何pattern
     return std::nullopt;
 }
 

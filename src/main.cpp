@@ -1,7 +1,9 @@
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
+#include "AST.h"
 #include "log.h"
 #include "parser.h"
+#include "mem.h"
 
 int main(int argc, char *argv[]) {
     log("main") << "SysY compiler" << std::endl;
@@ -15,6 +17,15 @@ int main(int argc, char *argv[]) {
     }
 
     yyparse();
+
+    log("main") << "final AST root: " << AST::root << std::endl;
+
+    // 打印AST
+    // 在long_code2 testcase中会出现树过大的情况，导致打印出来的AST过长，因此暂时不打印树结构
+//    AST::show();
+
+    // 释放AST占用的内存
+    Memory::freeAll();
 
     return 0;
 }

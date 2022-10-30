@@ -4,11 +4,14 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <regex>
 
 class Lexer {
-    std::string rest;
+    std::string input;
+    std::sregex_iterator it, end;
+    std::regex regex;
 public:
-    explicit Lexer(std::string input) : rest(input) {}
+    explicit Lexer(std::string input) : input(std::move(input)) {}
 
     std::optional<int> getToken();
 };

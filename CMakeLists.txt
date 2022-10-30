@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(LOG_OUTPUT "show log info" OFF)
 option(TEST_LEXER "test lexer using the lexer test file" OFF)
+option(TEST_PARSER "test parser using test file" OFF)
+option(TEST_COMPETITION "test all competition testcases" OFF)
 
 #
 # frontend part
@@ -20,8 +22,8 @@ set(FRONTEND src/frontend)
 # https://cmake.org/cmake/help/latest/module/FindBISON.html
 find_package(BISON)
 bison_target(SysY_parser ${FRONTEND}/parser.y ${CMAKE_CURRENT_BINARY_DIR}/parser.cpp
-        DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h
-        COMPILE_FLAGS "-Wcounterexamples")
+        DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/parser.h)
+#        COMPILE_FLAGS "-Wcounterexamples")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # find llvm package
@@ -45,14 +47,14 @@ file(GLOB_RECURSE COMPILER_SRC src/*.cpp)
 list(APPEND HEADERS src)
 list(APPEND HEADERS src/frontend)
 
-if(LOG_OUTPUT)
+if (LOG_OUTPUT)
     add_compile_definitions(CONF_LOG_OUTPUT)
-endif()
+endif ()
 
 add_executable(sysy_compiler
         ${COMPILER_SRC}
         ${BISON_SysY_parser_OUTPUTS}
-)
+        )
 
 target_include_directories(sysy_compiler PRIVATE ${HEADERS})
 
@@ -64,7 +66,7 @@ target_link_libraries(sysy_compiler ${llvm_libs})
 
 enable_testing()
 
-if(TEST_LEXER)
+if (TEST_LEXER)
     function(add_lexer_test test_name file_name)
         add_test(NAME ${test_name} COMMAND
                 sysy_compiler ${CMAKE_CURRENT_SOURCE_DIR}/test/lexer/${file_name}
@@ -72,6 +74,44 @@ if(TEST_LEXER)
     endfunction()
     add_lexer_test(lexer_test_1 1.sy)
     add_lexer_test(lexer_test_2 2.sy)
-endif()
+endif ()
 
+if (TEST_PARSER)
+    function(add_parser_test test_name file_name)
+        add_test(NAME ${test_name} COMMAND
+                sysy_compiler ${CMAKE_CURRENT_SOURCE_DIR}/test/parser/${file_name}
+                )
+    endfunction()
+    add_parser_test(parser_test_1 1.sy)
+endif ()
 
+if (TEST_COMPETITION)
+    function(add_competition_test test_name file_name)
+        add_test(NAME ${test_name} COMMAND
+                sysy_compiler ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/${file_name}
+                )
+    endfunction()
+
+    function(add_competition_test_by_level level_name)
+        file(GLOB competition_test_files
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/${level_name}/*.sy
+                )
+        foreach (competition_test_file ${competition_test_files})
+            get_filename_component(competition_test_name ${competition_test_file} NAME_WE)
+            add_competition_test(
+                    "${level_name}#${competition_test_name}"
+                    ${level_name}/${competition_test_name}.sy
+            )
+        endforeach ()
+    endfunction()
+
+    add_competition_test_by_level(level1-1)
+    add_competition_test_by_level(level1-2)
+    add_competition_test_by_level(level2-1)
+    add_competition_test_by_level(level2-2)
+    add_competition_test_by_level(level2-3)
+    add_competition_test_by_level(level2-4)
+    add_competition_test_by_level(level2-5)
+    add_competition_test_by_level(level2-6)
+
+endif ()
