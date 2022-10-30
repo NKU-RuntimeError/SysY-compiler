@@ -197,6 +197,7 @@ block_element : decl
               ;
 stmt : lval ASSIGN expr SEMICOLON
      | expr SEMICOLON
+     | SEMICOLON
      | block
      | IF LPAREN condition RPAREN stmt %prec THEN
      | IF LPAREN condition RPAREN stmt ELSE stmt
