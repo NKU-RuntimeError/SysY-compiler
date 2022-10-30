@@ -3,6 +3,7 @@
 #include "AST.h"
 #include "log.h"
 #include "parser.h"
+#include "mem.h"
 
 int main(int argc, char *argv[]) {
     log("main") << "SysY compiler" << std::endl;
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]) {
     log("main") << "final AST root: " << AST::root << std::endl;
 
     // 释放AST占用的内存
-//    Memory::freeAll();
+    Memory::freeAll();
 
     return 0;
 }
