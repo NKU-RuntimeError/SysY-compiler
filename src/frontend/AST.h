@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <variant>
+#include <llvm/Support/JSON.h>
 #include "operator.h"
 #include "type.h"
 
@@ -15,6 +16,7 @@
 namespace AST {
 
     struct Base {
+        virtual llvm::json::Value toJSON() = 0;
         virtual ~Base() = default;
     };
 
@@ -28,18 +30,24 @@ namespace AST {
     struct CompileUnit : Base {
         // 存储：常量、变量声明 或 函数定义
         std::vector<Base *> compileElements;
+
+        llvm::json::Value toJSON() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
     // 常量、变量初始化
 
     struct InitializerList;
-    struct InitializerElement {
+    struct InitializerElement : Base {
         std::variant<Expr *, InitializerList *> element;
+
+        llvm::json::Value toJSON() override;
     };
 
-    struct InitializerList {
+    struct InitializerList : Base {
         std::vector<InitializerElement *> elements;
+
+        llvm::json::Value toJSON() override;
     };
 
     // 容器类
@@ -51,7 +59,7 @@ namespace AST {
     ////////////////////////////////////////////////////////////////////////////
     // 常量、变量声明
 
-    struct ConstVariableDef {
+    struct ConstVariableDef : Base {
         std::string name;
         // 数组维度，若普通变量则为空，若为数组则存储数组维度
         // 注：维度不一定是字面值常量，可以为int a[10/2];
@@ -60,6 +68,8 @@ namespace AST {
         // 若为数组，则以initializer_list的方式存储，如{1, 2, 3, 4}
         // 注：初始化列表可以嵌套，如{{1, 2}, 3, 4}，此时AST加深一层。也可以不初始化，此时为空指针
         InitializerElement *initVal;
+
+        llvm::json::Value toJSON() override;
     };
 
     // 容器类
@@ -73,12 +83,16 @@ namespace AST {
         // 存储常量定义，由于一个声明可以定义多个常量，所以使用vector
         // 例 int a = 1, b = 2;，constVariableDef中存储的就是"a = 1"
         std::vector<ConstVariableDef *> constVariableDefs;
+
+        llvm::json::Value toJSON() override;
     };
 
-    struct VariableDef {
+    struct VariableDef : Base {
         std::string name;
         std::vector<Expr *> size;
         InitializerElement *initVal;
+
+        llvm::json::Value toJSON() override;
     };
 
     // 容器类
@@ -89,18 +103,22 @@ namespace AST {
     struct VariableDecl : Decl {
         Typename type;
         std::vector<VariableDef *> variableDefs;
+
+        llvm::json::Value toJSON() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
     // 函数定义
 
     // TODO: 函数参数是否继承自Base待定
-    struct FunctionArg {
+    struct FunctionArg : Base {
         Typename type;
         std::string name;
         // 若为数组，则存储数组维度
         // 注：此时第一维为空指针，从第二维存储数值，例：int a[][3]
         std::vector<Expr *> size;
+
+        llvm::json::Value toJSON() override;
     };
 
     // 只是一个容器，用于在parser解析过程中临时存储函数参数
@@ -111,6 +129,8 @@ namespace AST {
     struct Block : Base {
         // 存储：常量、变量声明 或 语句
         std::vector<Base *> elements;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct FunctionDef : Base {
@@ -118,29 +138,42 @@ namespace AST {
         std::string name;
         std::vector<FunctionArg *> arguments;
         Block *body;
+
+        llvm::json::Value toJSON() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
     // 语句
 
-    struct LValue {
+    struct LValue : Base {
         std::string name;
         std::vector<Expr *> size;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct AssignStmt : Stmt {
         LValue *lValue;
         Expr *rValue;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct ExprStmt : Stmt {
         Expr *expr;
+
+        llvm::json::Value toJSON() override;
     };
 
-    struct NullStmt : Stmt {};
+    struct NullStmt : Stmt {
+
+        llvm::json::Value toJSON() override;
+    };
 
     struct BlockStmt : Stmt {
         std::vector<Base *> elements;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct IfStmt : Stmt {
@@ -148,18 +181,30 @@ namespace AST {
         Stmt *thenStmt;
         // 若存在else，则存储else语句，否则置为空指针
         Stmt *elseStmt;
+
+        llvm::json::Value toJSON() override;
     };
     struct WhileStmt : Stmt {
         Expr *condition;
         Stmt *body;
+
+        llvm::json::Value toJSON() override;
     };
 
-    struct BreakStmt : Stmt {};
+    struct BreakStmt : Stmt {
 
-    struct ContinueStmt : Stmt {};
+        llvm::json::Value toJSON() override;
+    };
+
+    struct ContinueStmt : Stmt {
+
+        llvm::json::Value toJSON() override;
+    };
 
     struct ReturnStmt : Stmt {
         Expr *expr;
+
+        llvm::json::Value toJSON() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -168,8 +213,11 @@ namespace AST {
     struct UnaryExpr : Expr {
         Operator op;
         Expr *expr;
+
+        llvm::json::Value toJSON() override;
     };
 
+    // 容器类
     struct FunctionParamList {
         std::vector<Expr *> params;
     };
@@ -177,22 +225,30 @@ namespace AST {
     struct FunctionCallExpr : Expr {
         std::string name;
         std::vector<Expr *> params;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct BinaryExpr : Expr {
         Operator op;
         Expr *lhs;
         Expr *rhs;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct NumberExpr : Expr {
         Typename type;
         std::string valueStr;
+
+        llvm::json::Value toJSON() override;
     };
 
     struct VariableExpr : Expr {
         std::string name;
         std::vector<Expr *> size;
+
+        llvm::json::Value toJSON() override;
     };
 }
 
