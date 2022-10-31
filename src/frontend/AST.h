@@ -6,6 +6,7 @@
 #include <string>
 #include <variant>
 #include <llvm/Support/JSON.h>
+#include <llvm/IR/Value.h>
 #include "operator.h"
 #include "type.h"
 
@@ -17,12 +18,18 @@ namespace AST {
 
     struct Base {
         virtual llvm::json::Value toJSON() = 0;
+
+        virtual llvm::Value *codeGen() = 0;
+
         virtual ~Base() = default;
     };
 
-    struct Stmt : Base {};
-    struct Expr : Base {};
-    struct Decl : Base {};
+    struct Stmt : Base {
+    };
+    struct Expr : Base {
+    };
+    struct Decl : Base {
+    };
 
     ////////////////////////////////////////////////////////////////////////////
     // 编译单元
@@ -32,22 +39,29 @@ namespace AST {
         std::vector<Base *> compileElements;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
     // 常量、变量初始化
 
     struct InitializerList;
+
     struct InitializerElement : Base {
         std::variant<Expr *, InitializerList *> element;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct InitializerList : Base {
         std::vector<InitializerElement *> elements;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     // 容器类
@@ -70,6 +84,8 @@ namespace AST {
         InitializerElement *initVal;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     // 容器类
@@ -85,6 +101,8 @@ namespace AST {
         std::vector<ConstVariableDef *> constVariableDefs;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct VariableDef : Base {
@@ -93,6 +111,8 @@ namespace AST {
         InitializerElement *initVal;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     // 容器类
@@ -105,6 +125,8 @@ namespace AST {
         std::vector<VariableDef *> variableDefs;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -119,6 +141,8 @@ namespace AST {
         std::vector<Expr *> size;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     // 只是一个容器，用于在parser解析过程中临时存储函数参数
@@ -131,6 +155,8 @@ namespace AST {
         std::vector<Base *> elements;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct FunctionDef : Base {
@@ -140,6 +166,8 @@ namespace AST {
         Block *body;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -150,6 +178,8 @@ namespace AST {
         std::vector<Expr *> size;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct AssignStmt : Stmt {
@@ -157,12 +187,16 @@ namespace AST {
         Expr *rValue;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct ExprStmt : Stmt {
         Expr *expr;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct NullStmt : Stmt {
@@ -174,6 +208,8 @@ namespace AST {
         std::vector<Base *> elements;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct IfStmt : Stmt {
@@ -183,28 +219,39 @@ namespace AST {
         Stmt *elseStmt;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
+
     struct WhileStmt : Stmt {
         Expr *condition;
         Stmt *body;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct BreakStmt : Stmt {
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct ContinueStmt : Stmt {
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct ReturnStmt : Stmt {
         Expr *expr;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -215,6 +262,8 @@ namespace AST {
         Expr *expr;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     // 容器类
@@ -227,6 +276,8 @@ namespace AST {
         std::vector<Expr *> params;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct BinaryExpr : Expr {
@@ -235,6 +286,8 @@ namespace AST {
         Expr *rhs;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct NumberExpr : Expr {
@@ -242,6 +295,8 @@ namespace AST {
         std::string valueStr;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct VariableExpr : Expr {
@@ -249,12 +304,15 @@ namespace AST {
         std::vector<Expr *> size;
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 }
 
 // 根节点
 namespace AST {
     extern Base *root;
+
     void show();
 }
 
