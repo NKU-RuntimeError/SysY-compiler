@@ -2,7 +2,7 @@
 #define SYSY_COMPILER_FRONTEND_SYMBOL_TABLE_H
 
 #include <list>
-#include <unordered_map>
+#include <map>
 #include <string>
 #include <llvm/IR/Value.h>
 
@@ -18,9 +18,7 @@ class SymbolTable {
     // It will own the memory for all of the IR that we generate, which is why the codegen()
     // method returns a raw Value*, rather than a unique_ptr<Value>."
 
-    // 这个符号表不错
-
-    std::list<std::unordered_map<std::string, llvm::Value *>> symbolStack;
+    std::list<std::map<std::string, llvm::Value *>> symbolStack;
 public:
     // 构造函数，负责创建一个全局符号表
     SymbolTable();
