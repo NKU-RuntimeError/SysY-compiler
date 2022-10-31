@@ -1,10 +1,10 @@
 #ifndef SYSY_COMPILER_FRONTEND_SYMBOL_TABLE_H
 #define SYSY_COMPILER_FRONTEND_SYMBOL_TABLE_H
 
-#include "llvm/IR/Value.h"
 #include <list>
 #include <unordered_map>
 #include <string>
+#include <llvm/IR/Value.h>
 
 class SymbolTable {
 
