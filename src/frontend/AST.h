@@ -202,6 +202,8 @@ namespace AST {
     struct NullStmt : Stmt {
 
         llvm::json::Value toJSON() override;
+
+        llvm::Value *codeGen() override;
     };
 
     struct BlockStmt : Stmt {
