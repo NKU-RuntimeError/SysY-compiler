@@ -245,7 +245,11 @@ llvm::json::Value AST::NumberExpr::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "NumberExpr";
     obj["type"] = std::string(magic_enum::enum_name(type));
-    obj["valueStr"] = valueStr;
+    if (type == Typename::INT) {
+        obj["value"] = std::get<int>(value);
+    } else {
+        obj["value"] = std::get<float>(value);
+    }
     return obj;
 }
 

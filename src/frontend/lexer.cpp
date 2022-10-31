@@ -18,7 +18,7 @@ struct Pattern {
     const std::function<std::optional<int>(std::string)> callback;
 
     Pattern(
-            const std::string& pattern,
+            const std::string &pattern,
             std::function<std::optional<int>(std::string)> callback
     );
 };
@@ -38,7 +38,8 @@ static std::string fixGroup(const std::string &pattern) {
     return fixedPattern;
 }
 
-Pattern::Pattern(const std::string& pattern, std::function<std::optional<int>(std::string)> callback)
+Pattern::Pattern(const std::string &pattern,
+                 std::function<std::optional<int>(std::string)> callback)
         : regex(fixGroup(pattern)), callback(std::move(callback)) {}
 
 // 记录行号，列号
@@ -69,14 +70,14 @@ std::optional<int> Lexer::getToken() {
         end = std::sregex_iterator();
     });
 
-retry:
+    retry:
     if (it == end) {
         return std::nullopt;
     }
 
     for (int i = 0; i < it->size(); i++) {
-        if ((*it)[i+1].matched) {
-            std::string str = (*it)[i+1].str();
+        if ((*it)[i + 1].matched) {
+            std::string str = (*it)[i + 1].str();
             it++;
             if (auto token = patterns[i].callback(str)) {
                 return token;

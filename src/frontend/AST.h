@@ -294,7 +294,7 @@ namespace AST {
 
     struct NumberExpr : Expr {
         Typename type;
-        std::string valueStr;
+        std::variant<int, float> value;
 
         llvm::json::Value toJSON() override;
 

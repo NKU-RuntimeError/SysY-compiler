@@ -65,6 +65,8 @@ void yyerror(const char* s);
     Typename typenameType;
     Operator operatorType;
     std::string *strType;
+    int intType;
+    float floatType;
 }
 // TODO: 增加更多类型，例：AST::Expr *exprType;
 
@@ -80,7 +82,8 @@ void yyerror(const char* s);
 %token IF ELSE
 %token WHILE BREAK CONTINUE
 %token RETURN
-%token <strType> VALUE_INT VALUE_FLOAT
+%token <intType> VALUE_INT
+%token <floatType> VALUE_FLOAT
 %token PLUS MINUS NOT
 %token MUL DIV MOD
 %token LT LE GT GE EQ NE
@@ -509,13 +512,13 @@ primary_expr
 number
     : VALUE_INT {
         auto ptr = Memory::make<AST::NumberExpr>();
-	ptr->valueStr = *$1;
+	ptr->value = $1;
 	ptr->type = Typename::INT;
 	$$ = ptr;
     }
     | VALUE_FLOAT {
         auto ptr = Memory::make<AST::NumberExpr>();
-	ptr->valueStr = *$1;
+	ptr->value = $1;
 	ptr->type = Typename::FLOAT;
 	$$ = ptr;
     }
