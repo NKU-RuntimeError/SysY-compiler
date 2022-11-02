@@ -9,14 +9,14 @@
 // 用于IR生成的context
 struct Context {
     // 注意：顺序不可调整，否则初始化顺序可能存在问题
-    llvm::LLVMContext llvmContext;
+    llvm::LLVMContext llvmCtx;
     llvm::Module module;
     llvm::IRBuilder<> builder;
     SymbolTable symbolTable;
 
-    Context() : llvmContext(),
-                module("master", llvmContext),
-                builder(llvmContext) {}
+    Context() : llvmCtx(),
+                module("master", llvmCtx),
+                builder(llvmCtx) {}
 };
 
 #endif //SYSY_COMPILER_FRONTEND_CONTEXT_H

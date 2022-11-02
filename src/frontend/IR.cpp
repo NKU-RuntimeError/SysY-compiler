@@ -2,10 +2,10 @@
 #include "log.h"
 
 namespace IR {
-    Context context;
+    Context ctx;
 
     void show() {
         log("IR") << "show IR" << std::endl;
-        context.module.print(llvm::errs(), nullptr);
+        ctx.module.print(llvm::errs(), nullptr);
     }
 }

@@ -4,7 +4,7 @@
 #include "context.h"
 
 namespace IR {
-    extern Context context;
+    extern Context ctx;
 
     void show();
 }
