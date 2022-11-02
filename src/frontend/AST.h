@@ -16,10 +16,16 @@
 
 namespace AST {
 
+    // 为了简化继承关系，我们将所有子类可能会实现的方法放在Base中
+    // 子类可以选择性实现这些方法
     struct Base {
-        virtual llvm::json::Value toJSON() = 0;
+        virtual llvm::json::Value toJSON() {
+            throw std::logic_error("not implemented");
+        }
 
-        virtual llvm::Value *codeGen() = 0;
+        virtual llvm::Value *codeGen() {
+            throw std::logic_error("not implemented");
+        }
 
         virtual ~Base() = default;
     };
@@ -48,23 +54,21 @@ namespace AST {
 
     struct InitializerList;
 
+    // 容器类
     struct InitializerElement : Base {
         std::variant<Expr *, InitializerList *> element;
 
         llvm::json::Value toJSON() override;
-
-        llvm::Value *codeGen() override;
     };
 
+    // 容器类
     struct InitializerList : Base {
         std::vector<InitializerElement *> elements;
 
         llvm::json::Value toJSON() override;
-
-        llvm::Value *codeGen() override;
     };
 
-    // 容器类
+    // 容器类，仅在构造AST中作为临时容器使用
     struct Array {
         std::string name;
         std::vector<Expr *> size;
@@ -73,6 +77,7 @@ namespace AST {
     ////////////////////////////////////////////////////////////////////////////
     // 常量、变量声明
 
+    // 容器类
     struct ConstVariableDef : Base {
         std::string name;
         // 数组维度，若普通变量则为空，若为数组则存储数组维度
@@ -84,11 +89,9 @@ namespace AST {
         InitializerElement *initVal;
 
         llvm::json::Value toJSON() override;
-
-        llvm::Value *codeGen() override;
     };
 
-    // 容器类
+    // 容器类，仅在构造AST中作为临时容器使用
     struct ConstVariableDefList {
         std::vector<ConstVariableDef *> constVariableDefs;
     };
@@ -105,17 +108,16 @@ namespace AST {
         llvm::Value *codeGen() override;
     };
 
+    // 容器类
     struct VariableDef : Base {
         std::string name;
         std::vector<Expr *> size;
         InitializerElement *initVal;
 
         llvm::json::Value toJSON() override;
-
-        llvm::Value *codeGen() override;
     };
 
-    // 容器类
+    // 容器类，仅在构造AST中作为临时容器使用
     struct VariableDefList {
         std::vector<VariableDef *> variableDefs;
     };
@@ -132,7 +134,7 @@ namespace AST {
     ////////////////////////////////////////////////////////////////////////////
     // 函数定义
 
-    // TODO: 函数参数是否继承自Base待定
+    // 容器类
     struct FunctionArg : Base {
         Typename type;
         std::string name;
@@ -141,11 +143,9 @@ namespace AST {
         std::vector<Expr *> size;
 
         llvm::json::Value toJSON() override;
-
-        llvm::Value *codeGen() override;
     };
 
-    // 只是一个容器，用于在parser解析过程中临时存储函数参数
+    // 容器类，仅在构造AST中作为临时容器使用
     struct FunctionArgList {
         std::vector<FunctionArg *> arguments;
     };
@@ -173,13 +173,12 @@ namespace AST {
     ////////////////////////////////////////////////////////////////////////////
     // 语句
 
+    // 容器类
     struct LValue : Base {
         std::string name;
         std::vector<Expr *> size;
 
         llvm::json::Value toJSON() override;
-
-        llvm::Value *codeGen() override;
     };
 
     struct AssignStmt : Stmt {
@@ -268,7 +267,7 @@ namespace AST {
         llvm::Value *codeGen() override;
     };
 
-    // 容器类
+    // 容器类，仅在构造AST中作为临时容器使用
     struct FunctionParamList {
         std::vector<Expr *> params;
     };
