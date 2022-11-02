@@ -15,7 +15,7 @@ struct Context {
     SymbolTable symbolTable;
 
     Context() : llvmCtx(),
-                module("master", llvmCtx),
+                module("SysY_src", llvmCtx),
                 builder(llvmCtx) {}
 };
 
