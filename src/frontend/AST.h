@@ -18,6 +18,7 @@ namespace AST {
 
     // 为了简化继承关系，我们将所有子类可能会实现的方法放在Base中
     // 子类可以选择性实现这些方法
+    // 注意：这不是一个好的设计，只是为了简化代码
     struct Base {
         virtual llvm::json::Value toJSON() {
             throw std::logic_error("not implemented");
