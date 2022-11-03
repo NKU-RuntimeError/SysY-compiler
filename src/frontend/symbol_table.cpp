@@ -28,11 +28,17 @@ void SymbolTable::insert(const std::string &name, llvm::Value *value) {
     size_t level = symbolStack.size();
     log("sym_table") << "[" << level << "] insert '" << name << "'" << std::endl;
 
+    // 判断重复情况
+    auto &currScope = symbolStack.back();
+    if (currScope.find(name) != currScope.end()) {
+        throw std::runtime_error("symbol '" + name + "' already exists");
+    }
+
     // 插入一个符号到当前作用域的符号表
     symbolStack.back()[name] = value;
 }
 
-llvm::Value *SymbolTable::lookup(const std::string &name) {
+llvm::Value *SymbolTable::tryLookup(const std::string &name) {
     size_t level = symbolStack.size();
 
     // 从当前作用域开始向上查找符号
@@ -47,4 +53,12 @@ llvm::Value *SymbolTable::lookup(const std::string &name) {
     // 如果找不到，则返回nullptr
     err("sym_table") << "'" << name << "' not found" << std::endl;
     return nullptr;
+}
+
+llvm::Value *SymbolTable::lookup(const std::string &name) {
+    llvm::Value *value = tryLookup(name);
+    if (value == nullptr) {
+        throw std::runtime_error("symbol '" + name + "' not found");
+    }
+    return value;
 }

@@ -14,21 +14,6 @@ llvm::Value *AST::CompileUnit::codeGen() {
     return nullptr;
 }
 
-llvm::Value *AST::ConstVariableDecl::codeGen() {
-    return nullptr;
-}
-
-llvm::Value *AST::VariableDecl::codeGen() {
-    return nullptr;
-}
-
-llvm::Value *AST::Block::codeGen() {
-    for (auto element: elements) {
-        element->codeGen();
-    }
-    return nullptr;
-}
-
 static std::vector<std::optional<int>>
 convertArraySize(std::vector<AST::Expr *> &size) {
     std::vector<std::optional<int>> result;
@@ -46,6 +31,70 @@ convertArraySize(std::vector<AST::Expr *> &size) {
         result.emplace_back(std::get<int>(pNumber->value));
     }
     return result;
+}
+
+llvm::Value *AST::ConstVariableDecl::codeGen() {
+    return nullptr;
+}
+
+llvm::Value *AST::VariableDecl::codeGen() {
+
+    // 生成局部变量/全局变量
+    if (IR::ctx.local) {
+        // 局部变量
+
+        // 创建临时Builder，将变量插入到函数入口
+        llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
+        llvm::BasicBlock &entryBlock = function->getEntryBlock();
+        llvm::IRBuilder<> tempBuilder(&entryBlock, entryBlock.begin());
+
+        for (auto def: variableDefs) {
+            // 生成局部变量
+            llvm::AllocaInst *alloca = tempBuilder.CreateAlloca(
+                    TypeSystem::get(type, convertArraySize(def->size)),
+                    nullptr,
+                    def->name
+            );
+
+            // 将局部变量插入符号表
+            IR::ctx.symbolTable.insert(def->name, alloca);
+
+            // 初始化
+            if (def->initVal) {
+                // TODO: 实现初始化
+            }
+        }
+    } else {
+        // 全局变量
+        for (auto def: variableDefs) {
+            // 生成全局变量
+            auto var = new llvm::GlobalVariable(
+                    IR::ctx.module,
+                    TypeSystem::get(type, convertArraySize(def->size)),
+                    false,
+                    llvm::GlobalValue::LinkageTypes::ExternalLinkage,
+                    nullptr,
+                    def->name
+            );
+
+            // 将全局变量插入符号表
+            IR::ctx.symbolTable.insert(def->name, var);
+
+            // 初始化
+            if (def->initVal) {
+                // TODO: 实现初始化
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+llvm::Value *AST::Block::codeGen() {
+    for (auto element: elements) {
+        element->codeGen();
+    }
+    return nullptr;
 }
 
 llvm::Value *AST::FunctionDef::codeGen() {
@@ -91,6 +140,7 @@ llvm::Value *AST::FunctionDef::codeGen() {
     IR::ctx.builder.SetInsertPoint(entryBlock);
 
     // 进入新的作用域
+    IR::ctx.local = true;
     IR::ctx.symbolTable.push();
 
     // 为参数开空间，并保存在符号表中
@@ -99,7 +149,7 @@ llvm::Value *AST::FunctionDef::codeGen() {
         llvm::AllocaInst *alloca = IR::ctx.builder.CreateAlloca(
                 arg.getType(),
                 nullptr,
-                "p" + arg.getName()
+                arg.getName()
         );
         IR::ctx.builder.CreateStore(&arg, alloca);
         IR::ctx.symbolTable.insert(arguments[i++]->name, alloca);
@@ -110,6 +160,7 @@ llvm::Value *AST::FunctionDef::codeGen() {
 
     // 退出作用域
     IR::ctx.symbolTable.pop();
+    IR::ctx.local = false;
 
     // 验证函数
     if (llvm::verifyFunction(*function)) {
@@ -124,10 +175,12 @@ llvm::Value *AST::AssignStmt::codeGen() {
 }
 
 llvm::Value *AST::NullStmt::codeGen() {
+    // 什么也不做
     return nullptr;
 }
 
 llvm::Value *AST::ExprStmt::codeGen() {
+    // 什么也不做
     return nullptr;
 }
 
@@ -270,5 +323,27 @@ llvm::Value *AST::NumberExpr::codeGen() {
 }
 
 llvm::Value *AST::VariableExpr::codeGen() {
-    return nullptr;
+    llvm::Value *var = IR::ctx.symbolTable.lookup(name);
+
+    // 计算各维度
+    std::vector<llvm::Value *> indices;
+    for (auto s: size) {
+        indices.emplace_back(s->codeGen());
+    }
+
+    // 使用getelementptr指令访问数组元素
+    // 每个getelementptr多一个维度的原因：
+    // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
+    for (auto index: indices) {
+        var = IR::ctx.builder.CreateGEP(
+                var->getType()->getPointerElementType(),
+                var,
+                {
+                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(IR::ctx.llvmCtx), 0),
+                        index
+                }
+        );
+    }
+
+    return IR::ctx.builder.CreateLoad(var->getType()->getPointerElementType(), var);
 }

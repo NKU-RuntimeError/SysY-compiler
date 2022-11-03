@@ -33,6 +33,9 @@ public:
     void insert(const std::string &name, llvm::Value *value);
 
     // 从当前作用域开始向上查找符号
+    llvm::Value *tryLookup(const std::string &name);
+
+    // 当查找不到时，抛出异常
     llvm::Value *lookup(const std::string &name);
 };
 
