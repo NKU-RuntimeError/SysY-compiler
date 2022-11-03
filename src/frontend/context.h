@@ -12,7 +12,7 @@ struct Context {
     llvm::LLVMContext llvmCtx;
     llvm::Module module;
     llvm::IRBuilder<> builder;
-    SymbolTable symbolTable;
+    SymbolTable<llvm::Value *> symbolTable;
 
     // 区分全局/局部变量，仅在进入、退出函数时发生改变
     bool local;
@@ -20,6 +20,7 @@ struct Context {
     Context() : llvmCtx(),
                 module("SysY_src", llvmCtx),
                 builder(llvmCtx),
+                symbolTable(),
                 local(false) {}
 };
 
