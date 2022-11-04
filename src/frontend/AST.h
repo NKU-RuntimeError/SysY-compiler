@@ -28,6 +28,10 @@ namespace AST {
             throw std::logic_error("not implemented");
         }
 
+        virtual void constEval(Base *&root) {
+            throw std::logic_error("not implemented");
+        }
+
         virtual ~Base() = default;
     };
 
@@ -48,6 +52,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -60,6 +66,8 @@ namespace AST {
         std::variant<Expr *, InitializerList *> element;
 
         llvm::json::Value toJSON() override;
+
+        void constEval(Base *&root) override;
     };
 
     // 容器类
@@ -67,6 +75,8 @@ namespace AST {
         std::vector<InitializerElement *> elements;
 
         llvm::json::Value toJSON() override;
+
+        void constEval(Base *&root) override;
     };
 
     // 容器类，仅在构造AST中作为临时容器使用
@@ -107,6 +117,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     // 容器类
@@ -130,6 +142,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -144,6 +158,8 @@ namespace AST {
         std::vector<Expr *> size;
 
         llvm::json::Value toJSON() override;
+
+        void constEval(Base *&root) override;
     };
 
     // 容器类，仅在构造AST中作为临时容器使用
@@ -158,6 +174,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct FunctionDef : Base {
@@ -169,6 +187,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -189,6 +209,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct ExprStmt : Stmt {
@@ -197,6 +219,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct NullStmt : Stmt {
@@ -204,6 +228,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct BlockStmt : Stmt {
@@ -212,6 +238,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct IfStmt : Stmt {
@@ -223,6 +251,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct WhileStmt : Stmt {
@@ -232,6 +262,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct BreakStmt : Stmt {
@@ -239,6 +271,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct ContinueStmt : Stmt {
@@ -246,6 +280,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct ReturnStmt : Stmt {
@@ -254,6 +290,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     ////////////////////////////////////////////////////////////////////////////
@@ -266,6 +304,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     // 容器类，仅在构造AST中作为临时容器使用
@@ -280,6 +320,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct BinaryExpr : Expr {
@@ -290,6 +332,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct NumberExpr : Expr {
@@ -299,6 +343,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 
     struct VariableExpr : Expr {
@@ -308,6 +354,8 @@ namespace AST {
         llvm::json::Value toJSON() override;
 
         llvm::Value *codeGen() override;
+
+        void constEval(Base *&root) override;
     };
 }
 
