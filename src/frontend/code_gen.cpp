@@ -7,6 +7,8 @@
 #include "IR.h"
 #include "AST.h"
 
+// TODO: 加入库函数原型
+
 llvm::Value *AST::CompileUnit::codeGen() {
     for (auto compileElement: compileElements) {
         compileElement->codeGen();
@@ -304,44 +306,41 @@ llvm::Value *AST::BinaryExpr::codeGen() {
 }
 
 llvm::Value *AST::NumberExpr::codeGen() {
-    switch (type) {
-        case Typename::INT:
-            return llvm::ConstantInt::get(
-                    llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
-                    std::get<int>(value)
-            );
-        case Typename::FLOAT:
-            return llvm::ConstantFP::get(
-                    llvm::Type::getFloatTy(IR::ctx.llvmCtx),
-                    std::get<float>(value)
-            );
+    if (std::holds_alternative<int>(value)) {
+        return llvm::ConstantInt::get(
+                llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
+                std::get<int>(value)
+        );
+    } else {
+        return llvm::ConstantFP::get(
+                llvm::Type::getFloatTy(IR::ctx.llvmCtx),
+                std::get<float>(value)
+        );
     }
-
-    throw std::runtime_error(
-            "invalid type: " + std::string(magic_enum::enum_name(type))
-    );
 }
 
 llvm::Value *AST::VariableExpr::codeGen() {
     llvm::Value *var = IR::ctx.symbolTable.lookup(name);
 
-    // 计算各维度
     std::vector<llvm::Value *> indices;
+
+    // 计算各维度
+    // 每个getelementptr多一个前缀维度0的原因：
+    // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
+    indices.emplace_back(llvm::ConstantInt::get(
+            llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
+            0
+    ));
     for (auto s: size) {
         indices.emplace_back(s->codeGen());
     }
 
     // 使用getelementptr指令访问数组元素
-    // 每个getelementptr多一个维度的原因：
-    // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
-    for (auto index: indices) {
+    if (!indices.empty()) {
         var = IR::ctx.builder.CreateGEP(
                 var->getType()->getPointerElementType(),
                 var,
-                {
-                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(IR::ctx.llvmCtx), 0),
-                        index
-                }
+                indices
         );
     }
 
