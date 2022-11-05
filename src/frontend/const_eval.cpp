@@ -103,11 +103,10 @@ static AST::NumberExpr *getNumberExpr(std::variant<int, float> value) {
     return ptr;
 }
 
-static AST::InitializerElement *
-initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> size) {
+static void initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> size) {
     // 递归出口，到达最底层表达式
     if (std::holds_alternative<AST::Expr *>(initializerElement->element)) {
-        return initializerElement;
+        return;
     }
 
     // 中间节点，尝试进行提升
@@ -117,7 +116,7 @@ initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> 
 
     // 计算当前维度需要多少个数
     // 例：int[4][2] -> fullSize = 8
-    auto fullSize = std::reduce(
+    int fullSize = std::reduce(
             size.begin(),
             size.end(),
             1,
@@ -133,8 +132,8 @@ initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> 
 
     // 弹出第一个维度，递归向下做flatten
     size.pop_front();
-    for (auto element: initializerList->elements) {
-        auto flattenElement = initializerFlatten(element, size);
+    for (auto flattenElement: initializerList->elements) {
+        initializerFlatten(flattenElement, size);
 
         // 区分 单个元素/flatten列表 两种情况，加到当前层的临时列表中
         if (std::holds_alternative<AST::Expr *>(flattenElement->element)) {
@@ -164,9 +163,56 @@ initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> 
         elements.emplace_back(ptr);
     }
 
-    // 将展开结果存储到当前节点中，并返回给上层
+    // 将展开结果存储到当前节点中
     initializerList->elements = elements;
-    return initializerElement;
+}
+
+static void initializerSplit(AST::InitializerElement *initializerElement, std::deque<int> size) {
+    // 递归出口，到达最底层表达式
+    if (size.size() <= 1) {
+        return;
+    }
+
+    // 例：int[4][3][2] ->
+    //     currSize = 4
+    //     fullSize = 24
+    //     step     = 6
+    int currSize = size.front();
+    int fullSize = std::reduce(
+            size.begin(),
+            size.end(),
+            1,
+            std::multiplies<>()
+    );
+    int step = fullSize / currSize;
+
+    auto initializerList = std::get<AST::InitializerList *>(
+            initializerElement->element
+    );
+
+    // 创建临时数组，保存当前层的每个拆分
+    std::vector<AST::InitializerElement *> elements;
+
+    size.pop_front();
+    for (int i = 0; i < fullSize; i += step) {
+
+        // 构造拆分的列表
+        auto newElement = Memory::make<AST::InitializerElement>();
+        auto newList = Memory::make<AST::InitializerList>();
+        newList->elements = std::vector<AST::InitializerElement *>(
+                initializerList->elements.begin() + i,
+                initializerList->elements.begin() + i + step
+        );
+        newElement->element = newList;
+
+        // 递归向下拆分
+        initializerSplit(newElement, size);
+
+        // 保存在临时空间中
+        elements.emplace_back(newElement);
+    }
+
+    initializerList->elements = elements;
 }
 
 static void nestedInitializerFix(
@@ -182,6 +228,9 @@ static void nestedInitializerFix(
 
     // 将多维数组展开为一维数组
     initializerFlatten(initializerElement, sizeDeque);
+
+    // 将数组拆分为多维数组
+    initializerSplit(initializerElement, sizeDeque);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
