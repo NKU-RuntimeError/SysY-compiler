@@ -1,5 +1,7 @@
 #include <stdexcept>
 #include <variant>
+#include <numeric>
+#include <deque>
 #include "symbol_table.h"
 #include "mem.h"
 #include "AST.h"
@@ -85,7 +87,7 @@ static void initializerTypeFix(AST::InitializerElement *node, Typename wantType)
 }
 
 // 检查数组维度，确保数组维度为非负整数
-static void arraySizeCheck(AST::Expr *size) {
+static void constExprCheck(AST::Expr *size) {
     auto numberExpr = dynamic_cast<AST::NumberExpr *>(size);
     if (!numberExpr) {
         throw std::runtime_error("unexpected non-constant array size");
@@ -99,6 +101,87 @@ static AST::NumberExpr *getNumberExpr(std::variant<int, float> value) {
     auto ptr = Memory::make<AST::NumberExpr>();
     ptr->value = value;
     return ptr;
+}
+
+static AST::InitializerElement *
+initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> size) {
+    // 递归出口，到达最底层表达式
+    if (std::holds_alternative<AST::Expr *>(initializerElement->element)) {
+        return initializerElement;
+    }
+
+    // 中间节点，尝试进行提升
+    if (size.empty()) {
+        throw std::runtime_error("nested initializer list is too deep");
+    }
+
+    // 计算当前维度需要多少个数
+    // 例：int[4][2] -> fullSize = 8
+    auto fullSize = std::reduce(
+            size.begin(),
+            size.end(),
+            1,
+            std::multiplies<>()
+    );
+
+    auto initializerList = std::get<AST::InitializerList *>(
+            initializerElement->element
+    );
+
+    // 用于临时存储当前层展开的结果
+    std::vector<AST::InitializerElement *> elements;
+
+    // 弹出第一个维度，递归向下做flatten
+    size.pop_front();
+    for (auto element: initializerList->elements) {
+        auto flattenElement = initializerFlatten(element, size);
+
+        // 区分 单个元素/flatten列表 两种情况，加到当前层的临时列表中
+        if (std::holds_alternative<AST::Expr *>(flattenElement->element)) {
+            elements.emplace_back(flattenElement);
+        } else {
+            auto flattenList = std::get<AST::InitializerList *>(
+                    flattenElement->element
+            );
+            elements.insert(
+                    elements.end(),
+                    flattenList->elements.begin(),
+                    flattenList->elements.end()
+            );
+        }
+    }
+
+    // 如果当前层展开的结果数量超过了应有数量，则报错
+    if (elements.size() > fullSize) {
+        throw std::runtime_error("initializer overflow");
+    }
+
+    // 如果当前层展开的结果数量不足，则用0填充
+    // 注意：这里的0是int类型的0，不是float类型的0，在下一步可以进行隐式类型转换，在此不用担心
+    for (size_t i = elements.size(); i < fullSize; i++) {
+        auto ptr = Memory::make<AST::InitializerElement>();
+        ptr->element = getNumberExpr(0);
+        elements.emplace_back(ptr);
+    }
+
+    // 将展开结果存储到当前节点中，并返回给上层
+    initializerList->elements = elements;
+    return initializerElement;
+}
+
+static void nestedInitializerFix(
+        AST::InitializerElement *initializerElement,
+        const std::vector<AST::Expr *> &size
+) {
+    std::deque<int> sizeDeque;
+    // 在维度进行完常量求值后，再进行数组修复，因此可以确保一定是>=0的字面值常量
+    for (auto element: size) {
+        auto numberExpr = dynamic_cast<AST::NumberExpr *>(element);
+        sizeDeque.emplace_back(std::get<int>(numberExpr->value));
+    }
+
+    // 将多维数组展开为一维数组
+    initializerFlatten(initializerElement, sizeDeque);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,7 +217,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
 
             // 根据SysY定义：
             // "ConstDef中表示各维长度的ConstExp都必须能在编译时求值到非负整数。"
-            arraySizeCheck(s);
+            constExprCheck(s);
         }
 
         // 确保初值存在
@@ -142,6 +225,9 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
         if (!def->initVal) {
             throw std::runtime_error("const variable must be initialized");
         }
+
+        // 修复嵌套数组
+        nestedInitializerFix(def->initVal, def->size);
 
         // 尝试对初值求值
         constEvalTp(def->initVal);
@@ -178,13 +264,16 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 
             // 根据SysY定义：
             // "ConstDef中表示各维长度的ConstExp都必须能在编译时求值到非负整数。"
-            arraySizeCheck(s);
+            constExprCheck(s);
         }
 
         // 跳过没有初值的变量
         if (!def->initVal) {
             continue;
         }
+
+        // 修复嵌套数组
+        nestedInitializerFix(def->initVal, def->size);
 
         // 尝试对初值求值
         // 全局变量需要可编译期求值，因此需要在此尝试求值
@@ -201,7 +290,7 @@ void AST::FunctionArg::constEval(AST::Base *&root) {
         constEvalTp(s);
 
         // 确保求值成功
-        arraySizeCheck(s);
+        constExprCheck(s);
     }
 }
 
