@@ -6,6 +6,9 @@
 
 static SymbolTable<std::variant<int, float> *> constEvalSymTable;
 
+////////////////////////////////////////////////////////////////////////////////
+// helper函数
+
 template<typename Ty>
 void constEvalTp(Ty &p) {
     // 确保输入类型正确
@@ -14,7 +17,92 @@ void constEvalTp(Ty &p) {
     AST::Base *base = p;
     base->constEval(base);
     p = dynamic_cast<Ty>(base);
+    if (!p) {
+        throw std::logic_error("constEvalTp: dynamic_cast failed");
+    }
 }
+
+static Typename getType(const std::variant<int, float> &v) {
+    if (std::holds_alternative<int>(v)) {
+        return Typename::INT;
+    } else {
+        return Typename::FLOAT;
+    }
+}
+
+// 对编译期常量进行类型转换，仅支持int->float的转换
+static std::variant<int, float>
+typeFix(std::variant<int, float> v, Typename wantType) {
+    // 获得存储类型
+    Typename holdType = getType(v);
+
+    // 仅允许进行以下一种类型的转换：
+    // 参考SysY语言定义
+    // "数组元素初值类型应与数组元素声明类型一致，例如整型数组初值列表中不能出现浮点型元素；
+    // 但是浮点型数组的初始化列表中可以出现整型常量或整型常量表达式"
+    if (holdType == Typename::INT && wantType == Typename::FLOAT) {
+        return static_cast<float>(std::get<int>(v));
+    }
+
+    throw std::runtime_error("unexpected cast");
+}
+
+// 确保常量初始化列表全部是字面值常量
+static void constInitializerAssert(AST::InitializerElement *node) {
+    if (std::holds_alternative<AST::Expr *>(node->element)) {
+        // 尝试转换到数值表达式，如果失败则抛出异常
+        if (!dynamic_cast<AST::NumberExpr *>(std::get<AST::Expr *>(node->element))) {
+            throw std::runtime_error("unexpected non-constant initializer");
+        }
+    } else {
+        // 递归进行常量求值Assert
+        auto initializerList = std::get<AST::InitializerList *>(node->element);
+        for (auto element: initializerList->elements) {
+            constInitializerAssert(element);
+        }
+    }
+}
+
+static void initializerTypeFix(AST::InitializerElement *node, Typename wantType) {
+    if (std::holds_alternative<AST::Expr *>(node->element)) {
+        // 尝试转换到数值表达式
+        auto numberExpr = dynamic_cast<AST::NumberExpr *>(std::get<AST::Expr *>(node->element));
+        if (!numberExpr) {
+            return;
+        }
+
+        // 若类型不匹配，进行类型转换
+        if (getType(numberExpr->value) != wantType) {
+            numberExpr->value = typeFix(numberExpr->value, wantType);
+        }
+    } else {
+        // 递归进行类型转换
+        auto initializerList = std::get<AST::InitializerList *>(node->element);
+        for (auto element: initializerList->elements) {
+            initializerTypeFix(element, wantType);
+        }
+    }
+}
+
+// 检查数组维度，确保数组维度为非负整数
+static void arraySizeCheck(AST::Expr *size) {
+    auto numberExpr = dynamic_cast<AST::NumberExpr *>(size);
+    if (!numberExpr) {
+        throw std::runtime_error("unexpected non-constant array size");
+    }
+    if (std::get<int>(numberExpr->value) < 0) {
+        throw std::runtime_error("array size must be non-negative");
+    }
+}
+
+static AST::NumberExpr *getNumberExpr(std::variant<int, float> value) {
+    auto ptr = Memory::make<AST::NumberExpr>();
+    ptr->value = value;
+    return ptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 常量求值函数
 
 void AST::CompileUnit::constEval(AST::Base *&root) {
     // 注意这个auto &，由于是引用，所以可以递归修改子树指针
@@ -38,68 +126,6 @@ void AST::InitializerList::constEval(AST::Base *&root) {
     }
 }
 
-static Typename getType(const std::variant<int, float> &v) {
-    if (std::holds_alternative<int>(v)) {
-        return Typename::INT;
-    } else {
-        return Typename::FLOAT;
-    }
-}
-
-static std::variant<int, float>
-typeFix(std::variant<int, float> v, Typename wantType) {
-    // 获得存储类型
-    Typename holdType = getType(v);
-
-    // 仅允许进行以下一种类型的转换：
-    // 参考SysY语言定义
-    // "数组元素初值类型应与数组元素声明类型一致，例如整型数组初值列表中不能出现浮点型元素；
-    // 但是浮点型数组的初始化列表中可以出现整型常量或整型常量表达式"
-    if (holdType == Typename::INT && wantType == Typename::FLOAT) {
-        return static_cast<float>(std::get<int>(v));
-    }
-
-    throw std::runtime_error("unexpected cast in initializer");
-}
-
-// 确保常量初始化列表全部是字面值常量
-static void constInitializerAssert(AST::InitializerElement *node) {
-    if (std::holds_alternative<AST::Expr *>(node->element)) {
-        // 尝试转换到数值表达式，如果失败则抛出异常
-        [[maybe_unused]]
-        auto ptr = dynamic_cast<AST::NumberExpr *>(std::get<AST::Expr *>(node->element));
-    } else {
-        // 递归进行常量求值Assert
-        auto initializerList = std::get<AST::InitializerList *>(node->element);
-        for (auto element: initializerList->elements) {
-            constInitializerAssert(element);
-        }
-    }
-}
-
-static void initializerTypeFix(AST::InitializerElement *node, Typename wantType) {
-    if (std::holds_alternative<AST::Expr *>(node->element)) {
-        try {
-            // 尝试转换到数值表达式
-            auto numberExpr = dynamic_cast<AST::NumberExpr *>(
-                    std::get<AST::Expr *>(node->element)
-            );
-            // 若类型不匹配，进行类型转换
-            if (numberExpr->type != wantType) {
-                numberExpr->type = wantType;
-                numberExpr->value = typeFix(numberExpr->value, wantType);
-            }
-        } catch (std::bad_cast &) {
-        }
-    } else {
-        // 递归进行类型转换
-        auto initializerList = std::get<AST::InitializerList *>(node->element);
-        for (auto element: initializerList->elements) {
-            initializerTypeFix(element, wantType);
-        }
-    }
-}
-
 void AST::ConstVariableDecl::constEval(AST::Base *&root) {
     for (auto def: constVariableDefs) {
         // 对各维度求值
@@ -108,10 +134,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
 
             // 根据SysY定义：
             // "ConstDef中表示各维长度的ConstExp都必须能在编译时求值到非负整数。"
-            auto numberExpr = dynamic_cast<AST::NumberExpr *>(s);
-            if (std::get<int>(numberExpr->value) < 0) {
-                throw std::runtime_error("array size must be non-negative");
-            }
+            arraySizeCheck(s);
         }
 
         // 确保初值存在
@@ -127,12 +150,13 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
         constInitializerAssert(def->initVal);
 
         // 对初值进行类型转换
-        // 例：const float a = 1;
+        // 例：float a = 1; 将(int)1转换为(float)1.0
         initializerTypeFix(def->initVal, type);
 
         // 将普通常量存储在符号表中
-        // 注意：不考虑数组常量
+        // 注意：不考虑数组常量，数组维度是empty即代表是普通常量
         if (def->size.empty()) {
+            // 由于上面已经确保了求值成功，因此在这里numberExpr一定不是空指针
             auto numberExpr = dynamic_cast<AST::NumberExpr *>(
                     std::get<AST::Expr *>(def->initVal->element)
             );
@@ -154,10 +178,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 
             // 根据SysY定义：
             // "ConstDef中表示各维长度的ConstExp都必须能在编译时求值到非负整数。"
-            auto numberExpr = dynamic_cast<AST::NumberExpr *>(s);
-            if (std::get<int>(numberExpr->value) < 0) {
-                throw std::runtime_error("array size must be non-negative");
-            }
+            arraySizeCheck(s);
         }
 
         // 跳过没有初值的变量
@@ -170,7 +191,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
         constEvalTp(def->initVal);
 
         // 对初值进行类型转换
-        // 例：float a = 1;
+        // 例：float a = 1; 将(int)1转换为(float)1.0
         initializerTypeFix(def->initVal, type);
     }
 }
@@ -178,6 +199,9 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 void AST::FunctionArg::constEval(AST::Base *&root) {
     for (auto &s: size) {
         constEvalTp(s);
+
+        // 确保求值成功
+        arraySizeCheck(s);
     }
 }
 
@@ -243,13 +267,6 @@ void AST::ReturnStmt::constEval(AST::Base *&root) {
     // 什么也不做
 }
 
-static AST::NumberExpr *getNumberExpr(Typename type, std::variant<int, float> value) {
-    auto ptr = Memory::make<AST::NumberExpr>();
-    ptr->type = type;
-    ptr->value = value;
-    return ptr;
-}
-
 void AST::UnaryExpr::constEval(AST::Base *&root) {
     // 尝试对子表达式求值
     constEvalTp(expr);
@@ -263,23 +280,16 @@ void AST::UnaryExpr::constEval(AST::Base *&root) {
 
     // 计算负号
     if (op == Operator::SUB) {
-        try {
-            auto numberExpr = dynamic_cast<AST::NumberExpr *>(expr);
-            if (numberExpr->type == Typename::INT) {
-                root = getNumberExpr(
-                        Typename::INT,
-                        -std::get<int>(numberExpr->value)
-                );
-            }
-            if (numberExpr->type == Typename::FLOAT) {
-                root = getNumberExpr(
-                        Typename::FLOAT,
-                        -std::get<float>(numberExpr->value)
-                );
-            }
-        } catch (std::bad_cast &) {
+        auto numberExpr = dynamic_cast<AST::NumberExpr *>(expr);
+        if (!numberExpr) {
+            return;
         }
-        return;
+
+        if (std::holds_alternative<int>(numberExpr->value)) {
+            root = getNumberExpr(-std::get<int>(numberExpr->value));
+        } else {
+            root = getNumberExpr(-std::get<float>(numberExpr->value));
+        }
     }
 
     // 不考虑条件表达式
@@ -296,17 +306,17 @@ binaryExprTypeFix(AST::NumberExpr *L, AST::NumberExpr *R) {
     // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
     // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
     Typename nodeType = static_cast<Typename>(std::max(
-            static_cast<int>(L->type),
-            static_cast<int>(R->type)
+            static_cast<int>(getType(L->value)),
+            static_cast<int>(getType(R->value))
     ));
 
     // 按需进行类型转换
     auto Lv = L->value;
     auto Rv = R->value;
-    if (L->type != nodeType) {
+    if (getType(Lv) != nodeType) {
         Lv = typeFix(Lv, nodeType);
     }
-    if (R->type != nodeType) {
+    if (getType(Rv) != nodeType) {
         Rv = typeFix(Rv, nodeType);
     }
 
@@ -318,95 +328,74 @@ void AST::BinaryExpr::constEval(AST::Base *&root) {
     constEvalTp(lhs);
     constEvalTp(rhs);
 
-    try {
-        // 类型转换
-        auto [L, R, nodeType] = binaryExprTypeFix(
-                dynamic_cast<AST::NumberExpr *>(lhs),
-                dynamic_cast<AST::NumberExpr *>(rhs)
-        );
-
-        // 尝试对子表达式求值
-        switch (op) {
-            case Operator::ADD: {
-                if (nodeType == Typename::INT) {
-                    root = getNumberExpr(
-                            Typename::INT,
-                            std::get<int>(L) + std::get<int>(R)
-                    );
-                    return;
-                }
-                if (nodeType == Typename::FLOAT) {
-                    root = getNumberExpr(
-                            Typename::FLOAT,
-                            std::get<float>(L) + std::get<float>(R)
-                    );
-                    return;
-                }
-            }
-            case Operator::SUB: {
-                if (nodeType == Typename::INT) {
-                    root = getNumberExpr(
-                            Typename::INT,
-                            std::get<int>(L) - std::get<int>(R)
-                    );
-                    return;
-                }
-                if (nodeType == Typename::FLOAT) {
-                    root = getNumberExpr(
-                            Typename::FLOAT,
-                            std::get<float>(L) - std::get<float>(R)
-                    );
-                    return;
-                }
-            }
-            case Operator::MUL: {
-                if (nodeType == Typename::INT) {
-                    root = getNumberExpr(
-                            Typename::INT,
-                            std::get<int>(L) * std::get<int>(R)
-                    );
-                    return;
-                }
-                if (nodeType == Typename::FLOAT) {
-                    root = getNumberExpr(
-                            Typename::FLOAT,
-                            std::get<float>(L) * std::get<float>(R)
-                    );
-                    return;
-                }
-            }
-            case Operator::DIV: {
-                if (nodeType == Typename::INT) {
-                    root = getNumberExpr(
-                            Typename::INT,
-                            std::get<int>(L) / std::get<int>(R)
-                    );
-                    return;
-                }
-                if (nodeType == Typename::FLOAT) {
-                    root = getNumberExpr(
-                            Typename::FLOAT,
-                            std::get<float>(L) / std::get<float>(R)
-                    );
-                    return;
-                }
-            }
-            case Operator::MOD: {
-                if (nodeType == Typename::INT) {
-                    root = getNumberExpr(
-                            Typename::INT,
-                            std::get<int>(L) % std::get<int>(R)
-                    );
-                    return;
-                }
-                if (nodeType == Typename::FLOAT) {
-                    throw std::runtime_error("float type cannot use mod operator");
-                }
-            }
-        }
-    } catch (std::bad_cast &) {
-        // 什么也不做
+    // 若左右子表达式均为常量，则进行计算，否则直接返回
+    auto numberExprLhs = dynamic_cast<AST::NumberExpr *>(lhs);
+    auto numberExprRhs = dynamic_cast<AST::NumberExpr *>(rhs);
+    if (!numberExprLhs || !numberExprRhs) {
+        return;
     }
+
+    // 进行隐式类型转换
+    auto [L, R, nodeType] = binaryExprTypeFix(
+            numberExprLhs,
+            numberExprRhs
+    );
+
+    // 尝试对子表达式求值
+    switch (op) {
+        case Operator::ADD: {
+            if (nodeType == Typename::INT) {
+                root = getNumberExpr(std::get<int>(L) + std::get<int>(R));
+                return;
+            }
+            if (nodeType == Typename::FLOAT) {
+                root = getNumberExpr(std::get<float>(L) + std::get<float>(R));
+                return;
+            }
+            break;
+        }
+        case Operator::SUB: {
+            if (nodeType == Typename::INT) {
+                root = getNumberExpr(std::get<int>(L) - std::get<int>(R));
+                return;
+            }
+            if (nodeType == Typename::FLOAT) {
+                root = getNumberExpr(std::get<float>(L) - std::get<float>(R));
+                return;
+            }
+            break;
+        }
+        case Operator::MUL: {
+            if (nodeType == Typename::INT) {
+                root = getNumberExpr(std::get<int>(L) * std::get<int>(R));
+                return;
+            }
+            if (nodeType == Typename::FLOAT) {
+                root = getNumberExpr(std::get<float>(L) * std::get<float>(R));
+                return;
+            }
+            break;
+        }
+        case Operator::DIV: {
+            if (nodeType == Typename::INT) {
+                root = getNumberExpr(std::get<int>(L) / std::get<int>(R));
+                return;
+            }
+            if (nodeType == Typename::FLOAT) {
+                root = getNumberExpr(std::get<float>(L) / std::get<float>(R));
+                return;
+            }
+            break;
+        }
+        case Operator::MOD: {
+            if (nodeType == Typename::INT) {
+                root = getNumberExpr(std::get<int>(L) % std::get<int>(R));
+                return;
+            }
+            break;
+        }
+    }
+    throw std::runtime_error("binary operator consteval failed");
 }
 
 void AST::NumberExpr::constEval(AST::Base *&root) {
@@ -414,18 +403,17 @@ void AST::NumberExpr::constEval(AST::Base *&root) {
 }
 
 void AST::VariableExpr::constEval(AST::Base *&root) {
+    // 从符号表中查找编译期常量
     std::variant<int, float> *pValue = constEvalSymTable.tryLookup(name);
     if (!pValue) {
         return;
     }
     auto &value = *pValue;
+
+    // 将根节点转换为字面值常量
     if (std::holds_alternative<int>(value)) {
-        root = getNumberExpr(Typename::INT, std::get<int>(value));
-        return;
-    }
-    if (std::holds_alternative<float>(value)) {
-        root = getNumberExpr(Typename::FLOAT, std::get<float>(value));
-        return;
+        root = getNumberExpr(std::get<int>(value));
+    } else {
+        root = getNumberExpr(std::get<float>(value));
     }
 }
-
