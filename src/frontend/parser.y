@@ -513,13 +513,11 @@ number
     : VALUE_INT {
         auto ptr = Memory::make<AST::NumberExpr>();
 	ptr->value = $1;
-	ptr->type = Typename::INT;
 	$$ = ptr;
     }
     | VALUE_FLOAT {
         auto ptr = Memory::make<AST::NumberExpr>();
 	ptr->value = $1;
-	ptr->type = Typename::FLOAT;
 	$$ = ptr;
     }
     ;
