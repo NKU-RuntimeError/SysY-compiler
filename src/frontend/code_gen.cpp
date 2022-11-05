@@ -4,12 +4,14 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Verifier.h>
 #include "magic_enum.h"
+#include "lib.h"
 #include "IR.h"
 #include "AST.h"
 
-// TODO: 加入库函数原型
-
 llvm::Value *AST::CompileUnit::codeGen() {
+    // 在编译的初始阶段添加SysY系统函数原型
+    addLibraryPrototype();
+
     for (auto compileElement: compileElements) {
         compileElement->codeGen();
     }

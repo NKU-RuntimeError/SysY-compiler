@@ -1,0 +1,6 @@
+#ifndef SYSY_COMPILER_FRONTEND_LIB_H
+#define SYSY_COMPILER_FRONTEND_LIB_H
+
+void addLibraryPrototype();
+
+#endif //SYSY_COMPILER_FRONTEND_LIB_H
