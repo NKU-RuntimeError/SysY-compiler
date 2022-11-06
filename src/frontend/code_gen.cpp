@@ -28,33 +28,131 @@ convertArraySize(std::vector<AST::Expr *> &size) {
             continue;
         }
 
-        // 若此行代码抛出异常，说明数组大小不是常量
+        // 常量求值阶段可确保数组维度的合法性，因此dynamic_cast不会返回空指针，并且一定是>=0的整型常数
         auto pNumber = dynamic_cast<AST::NumberExpr *>(s);
-
-        // 若此行代码抛出异常，说明数组大小不是整数，编译期常量求值错误
         result.emplace_back(std::get<int>(pNumber->value));
     }
     return result;
 }
 
+static llvm::Constant *
+constantInitValConvert(AST::InitializerElement *initializerElement, llvm::Type *type) {
+    // 递归出口
+    if (std::holds_alternative<AST::Expr *>(initializerElement->element)) {
+        return llvm::cast<llvm::Constant>(
+                std::get<AST::Expr *>(initializerElement->element)->codeGen()
+        );
+    }
+
+    auto initializerList = std::get<AST::InitializerList *>(
+            initializerElement->element
+    );
+
+    std::vector<llvm::Constant *> initVals;
+
+    // 递归将InitializerList转换为llvm::Constant
+    for (auto element: initializerList->elements) {
+        auto initVal = constantInitValConvert(
+                element,
+                type->getArrayElementType()
+        );
+        initVals.emplace_back(initVal);
+    }
+
+    return llvm::ConstantArray::get(
+            llvm::cast<llvm::ArrayType>(type),
+            initVals
+    );
+}
+
+static std::vector<llvm::Value *>
+getGEPIndices(const std::vector<int> &indices) {
+    std::vector<llvm::Value *> GEPIndices;
+    GEPIndices.emplace_back(
+            llvm::ConstantInt::get(llvm::Type::getInt32Ty(IR::ctx.llvmCtx), 0)
+    );
+    for (int index: indices) {
+        GEPIndices.emplace_back(
+                llvm::ConstantInt::get(llvm::Type::getInt32Ty(IR::ctx.llvmCtx), index)
+        );
+    }
+    return GEPIndices;
+}
+
+static void dynamicInitValCodeGen(
+        llvm::Value *alloca,
+        AST::InitializerElement *initializerElement,
+        const std::vector<int> &indices = {}
+) {
+    if (std::holds_alternative<AST::Expr *>(initializerElement->element)) {
+        auto val = std::get<AST::Expr *>(initializerElement->element)->codeGen();
+        auto var = IR::ctx.builder.CreateGEP(
+                alloca->getType()->getPointerElementType(),
+                alloca,
+                getGEPIndices(indices)
+        );
+        IR::ctx.builder.CreateStore(val, var);
+        return;
+    }
+
+    auto initializerList = std::get<AST::InitializerList *>(
+            initializerElement->element
+    );
+
+    std::vector<int> nextIndices = indices;
+    for (int i = 0; i < initializerList->elements.size(); i++) {
+        nextIndices.emplace_back(i);
+
+        dynamicInitValCodeGen(
+                alloca,
+                initializerList->elements[i],
+                nextIndices
+        );
+
+        nextIndices.pop_back();
+    }
+}
+
 llvm::Value *AST::ConstVariableDecl::codeGen() {
+    // 常量均存储在全局空间
+    for (auto def: constVariableDefs) {
+        // 确定常量名称，若为局部常量，则补充函数前缀
+        std::string varName = def->name;
+        if (IR::ctx.local) {
+            auto func = IR::ctx.builder.GetInsertBlock()->getParent();
+            varName = func->getName().str() + "." + varName;
+        }
+
+        auto var = new llvm::GlobalVariable(
+                IR::ctx.module,
+                TypeSystem::get(type, convertArraySize(def->size)),
+                true,
+                llvm::GlobalValue::LinkageTypes::InternalLinkage,
+                nullptr,
+                varName
+        );
+
+        // 将常量插入到符号表
+        IR::ctx.symbolTable.insert(def->name, var);
+
+        // 初始化
+        llvm::Constant *initVal = constantInitValConvert(
+                def->initVal,
+                TypeSystem::get(type, convertArraySize(def->size))
+        );
+        var->setInitializer(initVal);
+    }
+
     return nullptr;
 }
 
 llvm::Value *AST::VariableDecl::codeGen() {
-
     // 生成局部变量/全局变量
     if (IR::ctx.local) {
         // 局部变量
-
-        // 创建临时Builder，将变量插入到函数入口
-        llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
-        llvm::BasicBlock &entryBlock = function->getEntryBlock();
-        llvm::IRBuilder<> tempBuilder(&entryBlock, entryBlock.begin());
-
         for (auto def: variableDefs) {
             // 生成局部变量
-            llvm::AllocaInst *alloca = tempBuilder.CreateAlloca(
+            llvm::AllocaInst *alloca = IR::ctx.builder.CreateAlloca(
                     TypeSystem::get(type, convertArraySize(def->size)),
                     nullptr,
                     def->name
@@ -65,7 +163,7 @@ llvm::Value *AST::VariableDecl::codeGen() {
 
             // 初始化
             if (def->initVal) {
-                // TODO: 实现初始化
+                dynamicInitValCodeGen(alloca, def->initVal);
             }
         }
     } else {
@@ -76,7 +174,7 @@ llvm::Value *AST::VariableDecl::codeGen() {
                     IR::ctx.module,
                     TypeSystem::get(type, convertArraySize(def->size)),
                     false,
-                    llvm::GlobalValue::LinkageTypes::ExternalLinkage,
+                    llvm::GlobalValue::LinkageTypes::InternalLinkage,
                     nullptr,
                     def->name
             );
@@ -86,7 +184,11 @@ llvm::Value *AST::VariableDecl::codeGen() {
 
             // 初始化
             if (def->initVal) {
-                // TODO: 实现初始化
+                llvm::Constant *initVal = constantInitValConvert(
+                        def->initVal,
+                        TypeSystem::get(type, convertArraySize(def->size))
+                );
+                var->setInitializer(initVal);
             }
         }
     }
@@ -120,9 +222,10 @@ llvm::Value *AST::FunctionDef::codeGen() {
     );
 
     // 创建函数
+    // main函数为外部链接，其他函数为内部链接，便于优化
     llvm::Function *function = llvm::Function::Create(
             functionType,
-            llvm::Function::ExternalLinkage,
+            name == "main" ? llvm::Function::ExternalLinkage : llvm::Function::InternalLinkage,
             name,
             IR::ctx.module
     );
@@ -328,16 +431,16 @@ llvm::Value *AST::VariableExpr::codeGen() {
     if (!size.empty()) {
         std::vector<llvm::Value *> indices;
 
-    // 计算各维度
-    // 每个getelementptr多一个前缀维度0的原因：
-    // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
-    indices.emplace_back(llvm::ConstantInt::get(
-            llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
-            0
-    ));
-    for (auto s: size) {
-        indices.emplace_back(s->codeGen());
-    }
+        // 计算各维度
+        // 每个getelementptr多一个前缀维度0的原因：
+        // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
+        indices.emplace_back(llvm::ConstantInt::get(
+                llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
+                0
+        ));
+        for (auto s: size) {
+            indices.emplace_back(s->codeGen());
+        }
 
         var = IR::ctx.builder.CreateGEP(
                 var->getType()->getPointerElementType(),
