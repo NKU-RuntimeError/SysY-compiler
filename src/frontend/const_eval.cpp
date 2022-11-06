@@ -97,12 +97,6 @@ static void constExprCheck(AST::Expr *size) {
     }
 }
 
-static AST::NumberExpr *getNumberExpr(std::variant<int, float> value) {
-    auto ptr = Memory::make<AST::NumberExpr>();
-    ptr->value = value;
-    return ptr;
-}
-
 static void initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> size) {
     // 递归出口，到达最底层表达式
     if (std::holds_alternative<AST::Expr *>(initializerElement->element)) {
@@ -159,7 +153,7 @@ static void initializerFlatten(AST::InitializerElement *initializerElement, std:
     // 注意：这里的0是int类型的0，不是float类型的0，在下一步可以进行隐式类型转换，在此不用担心
     for (size_t i = elements.size(); i < fullSize; i++) {
         auto ptr = Memory::make<AST::InitializerElement>();
-        ptr->element = getNumberExpr(0);
+        ptr->element = Memory::make<AST::NumberExpr>(0);
         elements.emplace_back(ptr);
     }
 
@@ -215,7 +209,7 @@ static void initializerSplit(AST::InitializerElement *initializerElement, std::d
     initializerList->elements = elements;
 }
 
-static void nestedInitializerFix(
+static void fixNestedInitializer(
         AST::InitializerElement *initializerElement,
         const std::vector<AST::Expr *> &size
 ) {
@@ -276,7 +270,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
         }
 
         // 修复嵌套数组
-        nestedInitializerFix(def->initVal, def->size);
+        fixNestedInitializer(def->initVal, def->size);
 
         // 尝试对初值求值
         constEvalTp(def->initVal);
@@ -322,7 +316,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
         }
 
         // 修复嵌套数组
-        nestedInitializerFix(def->initVal, def->size);
+        fixNestedInitializer(def->initVal, def->size);
 
         // 尝试对初值求值
         // 全局变量需要可编译期求值，因此需要在此尝试求值
@@ -424,9 +418,9 @@ void AST::UnaryExpr::constEval(AST::Base *&root) {
         }
 
         if (std::holds_alternative<int>(numberExpr->value)) {
-            root = getNumberExpr(-std::get<int>(numberExpr->value));
+            root = Memory::make<AST::NumberExpr>(-std::get<int>(numberExpr->value));
         } else {
-            root = getNumberExpr(-std::get<float>(numberExpr->value));
+            root = Memory::make<AST::NumberExpr>(-std::get<float>(numberExpr->value));
         }
     }
 
@@ -483,51 +477,51 @@ void AST::BinaryExpr::constEval(AST::Base *&root) {
     switch (op) {
         case Operator::ADD: {
             if (nodeType == Typename::INT) {
-                root = getNumberExpr(std::get<int>(L) + std::get<int>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<int>(L) + std::get<int>(R));
                 return;
             }
             if (nodeType == Typename::FLOAT) {
-                root = getNumberExpr(std::get<float>(L) + std::get<float>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<float>(L) + std::get<float>(R));
                 return;
             }
             break;
         }
         case Operator::SUB: {
             if (nodeType == Typename::INT) {
-                root = getNumberExpr(std::get<int>(L) - std::get<int>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<int>(L) - std::get<int>(R));
                 return;
             }
             if (nodeType == Typename::FLOAT) {
-                root = getNumberExpr(std::get<float>(L) - std::get<float>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<float>(L) - std::get<float>(R));
                 return;
             }
             break;
         }
         case Operator::MUL: {
             if (nodeType == Typename::INT) {
-                root = getNumberExpr(std::get<int>(L) * std::get<int>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<int>(L) * std::get<int>(R));
                 return;
             }
             if (nodeType == Typename::FLOAT) {
-                root = getNumberExpr(std::get<float>(L) * std::get<float>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<float>(L) * std::get<float>(R));
                 return;
             }
             break;
         }
         case Operator::DIV: {
             if (nodeType == Typename::INT) {
-                root = getNumberExpr(std::get<int>(L) / std::get<int>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<int>(L) / std::get<int>(R));
                 return;
             }
             if (nodeType == Typename::FLOAT) {
-                root = getNumberExpr(std::get<float>(L) / std::get<float>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<float>(L) / std::get<float>(R));
                 return;
             }
             break;
         }
         case Operator::MOD: {
             if (nodeType == Typename::INT) {
-                root = getNumberExpr(std::get<int>(L) % std::get<int>(R));
+                root = Memory::make<AST::NumberExpr>(std::get<int>(L) % std::get<int>(R));
                 return;
             }
             break;
@@ -550,8 +544,8 @@ void AST::VariableExpr::constEval(AST::Base *&root) {
 
     // 将根节点转换为字面值常量
     if (std::holds_alternative<int>(value)) {
-        root = getNumberExpr(std::get<int>(value));
+        root = Memory::make<AST::NumberExpr>(std::get<int>(value));
     } else {
-        root = getNumberExpr(std::get<float>(value));
+        root = Memory::make<AST::NumberExpr>(std::get<float>(value));
     }
 }
