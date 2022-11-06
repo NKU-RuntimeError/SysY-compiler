@@ -244,8 +244,13 @@ llvm::json::Value AST::BinaryExpr::toJSON() {
 llvm::json::Value AST::NumberExpr::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "NumberExpr";
-    obj["type"] = std::string(magic_enum::enum_name(type));
-    obj["valueStr"] = valueStr;
+    if (std::holds_alternative<int>(value)) {
+        obj["type"] = "int";
+        obj["value"] = std::get<int>(value);
+    } else {
+        obj["type"] = "float";
+        obj["value"] = std::get<float>(value);
+    }
     return obj;
 }
 
