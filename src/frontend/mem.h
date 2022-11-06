@@ -1,5 +1,5 @@
-#ifndef SYSY_COMPILER_MEM_H
-#define SYSY_COMPILER_MEM_H
+#ifndef SYSY_COMPILER_FRONTEND_MEM_H
+#define SYSY_COMPILER_FRONTEND_MEM_H
 
 #include <vector>
 #include <functional>
@@ -21,4 +21,5 @@ namespace Memory {
     // 在整个AST不再使用时，调用该函数，释放AST占用的内存
     void freeAll();
 }
-#endif //SYSY_COMPILER_MEM_H
+
+#endif //SYSY_COMPILER_FRONTEND_MEM_H
