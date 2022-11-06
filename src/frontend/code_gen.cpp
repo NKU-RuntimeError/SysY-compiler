@@ -324,7 +324,9 @@ llvm::Value *AST::NumberExpr::codeGen() {
 llvm::Value *AST::VariableExpr::codeGen() {
     llvm::Value *var = IR::ctx.symbolTable.lookup(name);
 
-    std::vector<llvm::Value *> indices;
+    // 若为数组，则使用getelementptr指令访问元素
+    if (!size.empty()) {
+        std::vector<llvm::Value *> indices;
 
     // 计算各维度
     // 每个getelementptr多一个前缀维度0的原因：
@@ -337,8 +339,6 @@ llvm::Value *AST::VariableExpr::codeGen() {
         indices.emplace_back(s->codeGen());
     }
 
-    // 使用getelementptr指令访问数组元素
-    if (!indices.empty()) {
         var = IR::ctx.builder.CreateGEP(
                 var->getType()->getPointerElementType(),
                 var,
