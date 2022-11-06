@@ -1,5 +1,5 @@
-#ifndef SYSY_COMPILER_OPERATOR_H
-#define SYSY_COMPILER_OPERATOR_H
+#ifndef SYSY_COMPILER_FRONTEND_OPERATOR_H
+#define SYSY_COMPILER_FRONTEND_OPERATOR_H
 
 enum class Operator {
     ADD,
@@ -17,4 +17,5 @@ enum class Operator {
     EQ,
     NE,
 };
-#endif //SYSY_COMPILER_OPERATOR_H
+
+#endif //SYSY_COMPILER_FRONTEND_OPERATOR_H
