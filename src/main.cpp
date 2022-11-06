@@ -5,6 +5,7 @@
 #include "parser.h"
 #include "mem.h"
 #include "IR.h"
+#include "pass_manager.h"
 
 int main(int argc, char *argv[]) {
     log("main") << "SysY compiler" << std::endl;
@@ -30,6 +31,10 @@ int main(int argc, char *argv[]) {
     AST::show();
 
     AST::root->codeGen();
+
+    IR::show();
+
+    PassManager::run(llvm::OptimizationLevel::O3);
 
     IR::show();
 

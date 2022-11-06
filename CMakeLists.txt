@@ -37,7 +37,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs support core irreader passes)
 
 #
 # compiler part
@@ -46,6 +46,7 @@ llvm_map_components_to_libnames(llvm_libs support core irreader)
 file(GLOB_RECURSE COMPILER_SRC src/*.cpp)
 list(APPEND HEADERS src)
 list(APPEND HEADERS src/frontend)
+list(APPEND HEADERS src/passes)
 
 if (LOG_OUTPUT)
     add_compile_definitions(CONF_LOG_OUTPUT)
