@@ -68,7 +68,6 @@ void yyerror(const char* s);
     int intType;
     float floatType;
 }
-// TODO: 增加更多类型，例：AST::Expr *exprType;
 
 %token CONST
 %token COMMA
@@ -88,10 +87,6 @@ void yyerror(const char* s);
 %token MUL DIV MOD
 %token LT LE GT GE EQ NE
 %token AND OR
-
-
-
-// TODO: 增加更多非终结符类型，方便在语义动作中构建AST 例：%nterm <exprType> xxx
 
 // 用于解决if-else的shift/reduce冲突
 // 参考资料：
@@ -134,6 +129,9 @@ void yyerror(const char* s);
 %nterm <functionParamListType> func_param_list
 %nterm <exprType> mul_div_mod_expr add_sub_expr relation_expr equal_relation_expr logical_and_expr logical_or_expr
 %nterm <exprType> const_expr
+
+// 在AST中，为了更清晰的表达AST节点的构造过程，不使用构造函数进行初始化，而是在创建节点后，手动设置各个属性
+// 如果使用构造函数，则容易导致代码难以阅读
 
 %%
 
