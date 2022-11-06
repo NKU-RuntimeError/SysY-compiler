@@ -23,7 +23,11 @@ int main(int argc, char *argv[]) {
 
     // 打印AST
     // 在long_code2 testcase中会出现树过大的情况，导致打印出来的AST过长，因此暂时不打印树结构
-//    AST::show();
+    AST::show();
+
+    AST::root->constEval(AST::root);
+
+    AST::show();
 
     AST::root->codeGen();
 
