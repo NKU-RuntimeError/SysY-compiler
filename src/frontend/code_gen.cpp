@@ -225,7 +225,9 @@ llvm::Value *AST::FunctionDef::codeGen() {
     // main函数为外部链接，其他函数为内部链接，便于优化
     llvm::Function *function = llvm::Function::Create(
             functionType,
-            name == "main" ? llvm::Function::ExternalLinkage : llvm::Function::InternalLinkage,
+            name == "main" ?
+                llvm::Function::ExternalLinkage :
+                llvm::Function::InternalLinkage,
             name,
             IR::ctx.module
     );
