@@ -32,14 +32,14 @@ int main(int argc, char *argv[]) {
 
     AST::root->codeGen();
 
+    // 释放AST占用的内存
+    Memory::freeAll();
+
     IR::show();
 
     PassManager::run(llvm::OptimizationLevel::O3);
 
     IR::show();
-
-    // 释放AST占用的内存
-    Memory::freeAll();
 
     return 0;
 }
