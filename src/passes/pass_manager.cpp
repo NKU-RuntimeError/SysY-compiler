@@ -1,3 +1,4 @@
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -57,4 +58,20 @@ void PassManager::run(llvm::OptimizationLevel level) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(level);
 
     MPM.run(IR::ctx.module, MAM);
+
+    // 生成汇编文件
+//    std::error_code EC;
+//    llvm::raw_fd_ostream dest("out.s", EC, llvm::sys::fs::OF_None);
+//    if (EC) {
+//        llvm::errs() << "Could not open file: " << EC.message();
+//        return;
+//    }
+    log("PM") << "generate assembly" << std::endl;
+    llvm::legacy::PassManager codeGenPass;
+    auto fileType = llvm::CGFT_AssemblyFile;
+    if (targetMachine->addPassesToEmitFile(codeGenPass, llvm::errs(), nullptr, fileType)) {
+        llvm::errs() << "TargetMachine can't emit a file of this type";
+        return;
+    }
+    codeGenPass.run(IR::ctx.module);
 }
