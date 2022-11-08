@@ -77,7 +77,7 @@ public:
         }
 
         // 如果找不到，则返回nullptr
-        err("sym_table") << "'" << name << "' not found" << std::endl;
+        log("sym_table") << "'" << name << "' not found" << std::endl;
         return nullptr;
     }
 
