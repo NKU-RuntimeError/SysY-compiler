@@ -1,6 +1,7 @@
 %{
 #include <iostream>
 #include <string>
+#include <stdexcept>
 #include "log.h"
 #include "lexer.h"
 int yylex();
@@ -700,6 +701,5 @@ const_expr
 %%
 
 void yyerror(const char* s) {
-    err("parser") << s << std::endl;
-    std::exit(1);
+    throw std::runtime_error(s);
 }

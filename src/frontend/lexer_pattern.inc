@@ -247,8 +247,10 @@ static Pattern patterns[]{
 
 
         {".+",            T_CALLBACK {
-            err("lexer") << "Unknown token: " << str << std::endl;
-            std::exit(1);
+            throw std::runtime_error(
+                    "Unknown token: " + str + "at " +
+                    std::to_string(currLine) + ":" + std::to_string(currCol)
+            );
         }}
 };
 

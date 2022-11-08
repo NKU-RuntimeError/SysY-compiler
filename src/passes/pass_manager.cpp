@@ -11,12 +11,7 @@
 
 // 使用llvm的新pass manager
 // https://llvm.org/docs/NewPassManager.html
-void PassManager::run(llvm::OptimizationLevel level) {
-
-    llvm::LoopAnalysisManager LAM;
-    llvm::FunctionAnalysisManager FAM;
-    llvm::CGSCCAnalysisManager CGAM;
-    llvm::ModuleAnalysisManager MAM;
+void PassManager::run(int optLevel, const std::string &filename) {
 
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -40,38 +35,50 @@ void PassManager::run(llvm::OptimizationLevel level) {
     IR::ctx.module.setDataLayout(targetMachine->createDataLayout());
     IR::ctx.module.setTargetTriple(triple);
 
-    llvm::PassBuilder PB(targetMachine);
+    if (optLevel != 0) {
+        llvm::LoopAnalysisManager LAM;
+        llvm::FunctionAnalysisManager FAM;
+        llvm::CGSCCAnalysisManager CGAM;
+        llvm::ModuleAnalysisManager MAM;
 
-    PB.registerModuleAnalyses(MAM);
-    PB.registerCGSCCAnalyses(CGAM);
-    PB.registerFunctionAnalyses(FAM);
-    PB.registerLoopAnalyses(LAM);
-    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+        llvm::PassBuilder PB(targetMachine);
 
-    // 在优化管道前端加入自己的pass
-    PB.registerPipelineStartEPCallback(
-            [&](llvm::ModulePassManager &MPM, llvm::OptimizationLevel level) {
-                MPM.addPass(llvm::createModuleToFunctionPassAdaptor(HelloWorldPass()));
-            }
-    );
+        PB.registerModuleAnalyses(MAM);
+        PB.registerCGSCCAnalyses(CGAM);
+        PB.registerFunctionAnalyses(FAM);
+        PB.registerLoopAnalyses(LAM);
+        PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(level);
+        // 在优化管道前端加入自己的pass
+        PB.registerPipelineStartEPCallback(
+                [&](llvm::ModulePassManager &MPM, llvm::OptimizationLevel level) {
+                    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(HelloWorldPass()));
+                }
+        );
 
-    MPM.run(IR::ctx.module, MAM);
+        llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+                llvm::OptimizationLevel::O3
+        );
+
+        MPM.run(IR::ctx.module, MAM);
+
+        // 展示优化后的IR
+        IR::show();
+    }
 
     // 生成汇编文件
-//    std::error_code EC;
-//    llvm::raw_fd_ostream dest("out.s", EC, llvm::sys::fs::OF_None);
-//    if (EC) {
-//        llvm::errs() << "Could not open file: " << EC.message();
-//        return;
-//    }
+    std::error_code EC;
+    llvm::raw_fd_ostream file(filename, EC, llvm::sys::fs::OF_None);
+    if (EC) {
+        throw std::runtime_error("Could not open file: " + EC.message());
+    }
+
     log("PM") << "generate assembly" << std::endl;
     llvm::legacy::PassManager codeGenPass;
     auto fileType = llvm::CGFT_AssemblyFile;
-    if (targetMachine->addPassesToEmitFile(codeGenPass, llvm::errs(), nullptr, fileType)) {
-        llvm::errs() << "TargetMachine can't emit a file of this type";
-        return;
+    if (targetMachine->addPassesToEmitFile(codeGenPass, file, nullptr, fileType)) {
+        throw std::logic_error("TargetMachine can't emit a file of this type");
     }
+
     codeGenPass.run(IR::ctx.module);
 }

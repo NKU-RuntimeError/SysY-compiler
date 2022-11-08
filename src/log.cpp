@@ -31,5 +31,5 @@ std::ostream &log(std::string_view module) {
 }
 
 std::ostream &err(std::string_view module) {
-    return log_(std::cerr, module, true);
+    return log_(std::cout, module, true);
 }
