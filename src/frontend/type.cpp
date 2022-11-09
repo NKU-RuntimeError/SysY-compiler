@@ -3,18 +3,22 @@
 #include "IR.h"
 #include "type.h"
 
-Typename TypeSystem::fromValue(llvm::Value *value) {
-    if (value->getType()->isIntegerTy(32)) {
+Typename TypeSystem::fromType(llvm::Type *type) {
+    if (type->isIntegerTy(32)) {
         return Typename::INT;
     }
-    if (value->getType()->isIntegerTy(1)) {
+    if (type->isIntegerTy(1)) {
         return Typename::BOOL;
     }
-    if (value->getType()->isFloatTy()) {
+    if (type->isFloatTy()) {
         return Typename::FLOAT;
     }
 
     throw std::runtime_error("value with unknown type");
+}
+
+Typename TypeSystem::fromValue(llvm::Value *value) {
+    return fromType(value->getType());
 }
 
 llvm::Value *TypeSystem::cast(llvm::Value *value, Typename wantType) {
