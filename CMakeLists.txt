@@ -88,10 +88,18 @@ if (TEST_PARSER)
 endif ()
 
 if (TEST_COMPETITION)
-    function(add_competition_test test_name file_name)
+
+    # chmod +x
+    execute_process(COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py)
+    function(add_competition_test group test_name)
         add_test(NAME ${test_name} COMMAND
-                sysy_compiler ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/${file_name}
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py
+                ${CMAKE_CURRENT_BINARY_DIR}/sysy_compiler
+                ${CMAKE_CURRENT_SOURCE_DIR}
+                test/competition/${group}/${test_name}
+                -O2
                 )
+        set_property(TEST ${test_name} PROPERTY LABELS ${group})
     endfunction()
 
     function(add_competition_test_by_level level_name)
@@ -101,8 +109,8 @@ if (TEST_COMPETITION)
         foreach (competition_test_file ${competition_test_files})
             get_filename_component(competition_test_name ${competition_test_file} NAME_WE)
             add_competition_test(
-                    "${level_name}#${competition_test_name}"
-                    ${level_name}/${competition_test_name}.sy
+                    ${level_name}
+                    ${competition_test_name}
             )
         endforeach ()
     endfunction()
