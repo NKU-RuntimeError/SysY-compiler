@@ -75,9 +75,12 @@ int main(int argc, char *argv[]) {
         // 生成汇编代码
         PassManager::run(optLevel, outputFilename);
 
-    } catch (std::exception &e) {
-        err("main") << "error: " << e.what() << std::endl;
+    } catch (std::runtime_error &e) {
+        err("main") << "invalid source file: " << e.what() << std::endl;
         return 1;
+    } catch (std::exception &e) {
+        err("main") << "internal error: " << e.what() << std::endl;
+        return 2;
     }
     return 0;
 }
