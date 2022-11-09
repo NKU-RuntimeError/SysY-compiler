@@ -92,14 +92,14 @@ if (TEST_COMPETITION)
     # chmod +x
     execute_process(COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py)
     function(add_competition_test group test_name)
-        add_test(NAME ${test_name} COMMAND
+        add_test(NAME "${group}.${test_name}" COMMAND
+                python3
                 ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py
                 ${CMAKE_CURRENT_BINARY_DIR}/sysy_compiler
                 ${CMAKE_CURRENT_SOURCE_DIR}
                 test/competition/${group}/${test_name}
                 -O2
                 )
-        set_property(TEST ${test_name} PROPERTY LABELS ${group})
     endfunction()
 
     function(add_competition_test_by_level level_name)
