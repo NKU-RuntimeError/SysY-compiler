@@ -8,15 +8,8 @@
 #include "IR.h"
 #include "AST.h"
 
-llvm::Value *AST::CompileUnit::codeGen() {
-    // 在编译的初始阶段添加SysY系统函数原型
-    addLibraryPrototype();
-
-    for (auto compileElement: compileElements) {
-        compileElement->codeGen();
-    }
-    return nullptr;
-}
+////////////////////////////////////////////////////////////////////////////////
+// helper函数
 
 static std::vector<std::optional<int>>
 convertArraySize(std::vector<AST::Expr *> &size) {
@@ -113,14 +106,58 @@ static void dynamicInitValCodeGen(
     }
 }
 
+static llvm::Value *
+getVariablePointer(const std::string &name, const std::vector<AST::Expr *> &size) {
+    llvm::Value *var = IR::ctx.symbolTable.lookup(name);
+
+    // 若为数组，则使用getelementptr指令访问元素
+    if (!size.empty()) {
+        std::vector<llvm::Value *> indices;
+
+        // 计算各维度
+        // 每个getelementptr多一个前缀维度0的原因：
+        // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
+        indices.emplace_back(llvm::ConstantInt::get(
+                llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
+                0
+        ));
+        for (auto s: size) {
+            indices.emplace_back(s->codeGen());
+        }
+
+        var = IR::ctx.builder.CreateGEP(
+                var->getType()->getPointerElementType(),
+                var,
+                indices
+        );
+    }
+
+    return var;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// IR生成函数
+
+llvm::Value *AST::CompileUnit::codeGen() {
+    // 在编译的初始阶段添加SysY系统函数原型
+    addLibraryPrototype();
+
+    for (auto compileElement: compileElements) {
+        compileElement->codeGen();
+    }
+    return nullptr;
+}
+
 llvm::Value *AST::ConstVariableDecl::codeGen() {
     // 常量均存储在全局空间
     for (auto def: constVariableDefs) {
         // 确定常量名称，若为局部常量，则补充函数前缀
-        std::string varName = def->name;
+        std::string varName;
         if (IR::ctx.local) {
             auto func = IR::ctx.builder.GetInsertBlock()->getParent();
-            varName = func->getName().str() + "." + varName;
+            varName = func->getName().str() + "." + def->name;
+        } else {
+            varName = def->name;
         }
 
         auto var = new llvm::GlobalVariable(
@@ -276,10 +313,27 @@ llvm::Value *AST::FunctionDef::codeGen() {
         throw std::logic_error("function verification failed");
     }
 
-    return function;
+    return nullptr;
 }
 
 llvm::Value *AST::AssignStmt::codeGen() {
+    // 获取左值和右值
+    llvm::Value *lhs = getVariablePointer(lValue->name, lValue->size);
+    llvm::Value *rhs = rValue->codeGen();
+
+    // 获取变量类型
+    // 注意：左值是变量的指针，需要获取其指向的类型
+    Typename lType = TypeSystem::fromType(lhs->getType()->getPointerElementType());
+    Typename rType = TypeSystem::fromValue(rhs);
+
+    // 尝试进行隐式类型转换，失败则抛出异常
+    if (lType != rType) {
+        rhs = TypeSystem::cast(rhs, lType);
+    }
+
+    IR::ctx.builder.CreateStore(lhs, rhs);
+
+    // SysY中的赋值语句没有值，因此返回空指针即可
     return nullptr;
 }
 
@@ -289,11 +343,17 @@ llvm::Value *AST::NullStmt::codeGen() {
 }
 
 llvm::Value *AST::ExprStmt::codeGen() {
-    // 什么也不做
+    expr->codeGen();
     return nullptr;
 }
 
 llvm::Value *AST::BlockStmt::codeGen() {
+    // 块语句需要开启新一层作用域
+    IR::ctx.symbolTable.push();
+    for (auto element: elements) {
+        element->codeGen();
+    }
+    IR::ctx.symbolTable.pop();
     return nullptr;
 }
 
@@ -323,11 +383,71 @@ llvm::Value *AST::ReturnStmt::codeGen() {
 }
 
 llvm::Value *AST::UnaryExpr::codeGen() {
-    return nullptr;
+    llvm::Value *value = expr->codeGen();
+    Typename type = TypeSystem::fromValue(value);
+    switch (op) {
+        case Operator::ADD: {
+            if (type == Typename::INT || type == Typename::FLOAT) {
+                return value;
+            }
+            throw std::runtime_error("invalid type for unary operator +");
+        }
+        case Operator::SUB: {
+            if (type == Typename::INT) {
+                return IR::ctx.builder.CreateNeg(value);
+            }
+            if (type == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFNeg(value);
+            }
+            throw std::runtime_error("invalid type for unary operator -");
+        }
+        case Operator::NOT: {
+            // 根据SysY语言定义：
+            // '!'仅允许在条件表达式中出现
+            if (type == Typename::BOOL) {
+                return IR::ctx.builder.CreateNot(value);
+            }
+            throw std::runtime_error("invalid type for unary operator !");
+        }
+    }
+    throw std::logic_error(
+            "invalid operator " + std::string(magic_enum::enum_name(op)) +
+            " in unary expression"
+    );
 }
 
 llvm::Value *AST::FunctionCallExpr::codeGen() {
-    return nullptr;
+    // 由于函数不涉及到分层问题，因此并没有存储在自建符号表中
+    // 直接使用llvm module中的函数表即可
+    llvm::Function *function = IR::ctx.module.getFunction(name);
+
+    // 合法性检查
+    if (!function) {
+        throw std::runtime_error("function " + name + " not found");
+    }
+    if (function->arg_size() != params.size()) {
+        throw std::runtime_error("invalid number of params for function " + name);
+    }
+
+    // 计算实参值
+    std::vector<llvm::Value *> values;
+    for (auto param: params) {
+        values.emplace_back(param->codeGen());
+    }
+
+    // 隐式类型转换
+    size_t i = 0;
+    for (const auto &argument : function->args()) {
+        Typename wantType = TypeSystem::fromType(argument.getType());
+        Typename gotType = TypeSystem::fromValue(values[i]);
+        if (wantType != gotType) {
+            values[i] = TypeSystem::cast(values[i], wantType);
+        }
+        i++;
+    }
+
+    // 调用函数
+    return IR::ctx.builder.CreateCall(function, values);
 }
 
 static std::tuple<llvm::Value *, llvm::Value *, Typename>
@@ -407,8 +527,9 @@ llvm::Value *AST::BinaryExpr::codeGen() {
 //            return nullptr;
     }
 
-    throw std::runtime_error(
-            "invalid operator: " + std::string(magic_enum::enum_name(op))
+    throw std::logic_error(
+            "invalid operator: " + std::string(magic_enum::enum_name(op)) +
+            " in binary expression"
     );
 }
 
@@ -427,29 +548,6 @@ llvm::Value *AST::NumberExpr::codeGen() {
 }
 
 llvm::Value *AST::VariableExpr::codeGen() {
-    llvm::Value *var = IR::ctx.symbolTable.lookup(name);
-
-    // 若为数组，则使用getelementptr指令访问元素
-    if (!size.empty()) {
-        std::vector<llvm::Value *> indices;
-
-        // 计算各维度
-        // 每个getelementptr多一个前缀维度0的原因：
-        // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
-        indices.emplace_back(llvm::ConstantInt::get(
-                llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
-                0
-        ));
-        for (auto s: size) {
-            indices.emplace_back(s->codeGen());
-        }
-
-        var = IR::ctx.builder.CreateGEP(
-                var->getType()->getPointerElementType(),
-                var,
-                indices
-        );
-    }
-
+    llvm::Value *var = getVariablePointer(name, size);
     return IR::ctx.builder.CreateLoad(var->getType()->getPointerElementType(), var);
 }
