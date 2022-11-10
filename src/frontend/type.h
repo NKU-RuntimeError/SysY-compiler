@@ -14,6 +14,8 @@ enum class Typename {
 };
 
 namespace TypeSystem {
+    Typename fromType(llvm::Type *type);
+
     Typename fromValue(llvm::Value *value);
 
     llvm::Value *cast(llvm::Value *value, Typename wantType);

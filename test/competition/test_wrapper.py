@@ -52,22 +52,25 @@ if __name__ == '__main__':
 
     # 判断是否有输入文件
     if os.path.exists(test_path + '.in'):
-        cmd.append('<')
-        cmd.append(test_path + '.in')
-
-    ret = subprocess.run(cmd, capture_output=True)
+        with open(test_path + '.in', 'rb') as f:
+            ret = subprocess.run(cmd, input=f.read(), capture_output=True)
+    else:
+        ret = subprocess.run(cmd, capture_output=True)
 
     # 删除.s文件和.bin文件
     os.remove('/tmp/' + test_name + '.s')
     os.remove('/tmp/' + test_name + '.bin')
 
     # 拼接返回值，并与正确输出比较
-    output = ret.stdout.decode('utf-8') + str(ret.returncode) + '\n'
+    output = ret.stdout.decode('utf-8')
+    if not (len(output) == 0 or output.endswith('\n')):
+        output += '\n'
+    output += str(ret.returncode) + '\n'
 
     with open(test_path + '.out', 'r') as f:
         expected_output = f.read()
 
-    if output == expected_output:
+    if output.strip('\n') == expected_output.strip('\n'):
         exit(0)
     else:
         print("output:")
