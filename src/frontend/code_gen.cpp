@@ -363,6 +363,60 @@ llvm::Value *AST::BlockStmt::codeGen() {
 }
 
 llvm::Value *AST::IfStmt::codeGen() {
+    // 计算条件表达式
+    llvm::Value *value = condition->codeGen();
+
+    // 隐式类型转换
+    Typename type = TypeSystem::fromValue(value);
+    if (type != Typename::BOOL) {
+        value = TypeSystem::cast(value, Typename::BOOL);
+    }
+
+    llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
+    llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "then");
+    llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "else");
+    llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "merge");
+
+    IR::ctx.builder.CreateCondBr(value, thenBB, elseBB);
+
+    // merge块不一定是需要的
+    // 仅当if或else分支需要跳转到merge块的时候，才会将merge块放到函数中
+    bool needMergeBB = false;
+
+    // 真分支
+    function->getBasicBlockList().push_back(thenBB);
+    IR::ctx.builder.SetInsertPoint(thenBB);
+    thenStmt->codeGen();
+    // 如果插入点还存在，说明没有产生return
+    // 此时创建无条件指令跳转到merge块
+    if (IR::ctx.builder.GetInsertBlock()) {
+        needMergeBB = true;
+        IR::ctx.builder.CreateBr(mergeBB);
+    }
+
+    // 假分支
+    // if, if-else 均有假分支，if的假分支直接跳转到merge基本块
+    // 让pass来帮我们优化吧
+    function->getBasicBlockList().push_back(elseBB);
+    IR::ctx.builder.SetInsertPoint(elseBB);
+    if (elseStmt) {
+        elseStmt->codeGen();
+    }
+    // 如果插入点还存在，说明没有产生return
+    // 此时创建无条件指令跳转到merge块
+    if (IR::ctx.builder.GetInsertBlock()) {
+        needMergeBB = true;
+        IR::ctx.builder.CreateBr(mergeBB);
+    }
+
+    // 合并块
+    // if (xxx) return X; else return Y;
+    // 在这种情况下，merge块是不需要的
+    if (needMergeBB) {
+        function->getBasicBlockList().push_back(mergeBB);
+        IR::ctx.builder.SetInsertPoint(mergeBB);
+    }
+
     return nullptr;
 }
 
@@ -379,11 +433,21 @@ llvm::Value *AST::ContinueStmt::codeGen() {
 }
 
 llvm::Value *AST::ReturnStmt::codeGen() {
+    // 如果插入点已经被clear，说明该基本块已经产生了return指令
+    // 则不再插入return指令，直接返回
+    if (!IR::ctx.builder.GetInsertBlock()) {
+        return nullptr;
+    }
+
     if (expr) {
         IR::ctx.builder.CreateRet(expr->codeGen());
     } else {
         IR::ctx.builder.CreateRetVoid();
     }
+
+    // 丢弃后续的IR
+    IR::ctx.builder.ClearInsertionPoint();
+
     return nullptr;
 }
 
