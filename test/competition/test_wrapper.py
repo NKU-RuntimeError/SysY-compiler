@@ -70,7 +70,7 @@ if __name__ == '__main__':
     with open(test_path + '.out', 'r') as f:
         expected_output = f.read()
 
-    if output == expected_output:
+    if output.strip('\n') == expected_output.strip('\n'):
         exit(0)
     else:
         print("output:")
