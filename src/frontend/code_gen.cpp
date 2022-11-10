@@ -432,6 +432,69 @@ llvm::Value *AST::IfStmt::codeGen() {
 }
 
 llvm::Value *AST::WhileStmt::codeGen() {
+
+    //
+    //           |
+    // +--->-----+
+    // |         V
+    // cond:                 <----+
+    // |   +------------+         |
+    // |   |            |         |
+    // |   +------------+         |
+    // |         |                |
+    // |         +-----------+    | continue target
+    // |         V           |    |
+    // body:                 |    |
+    // |   +------------+    |    |
+    // |   |            +---------+
+    // |   +------------+    |    |
+    // |         |           |    |
+    // +---------+           |    |
+    //                       |    | break target
+    //           +-----------+    |
+    //           V                |
+    // cont:                 <----+
+    //
+
+    llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
+    llvm::BasicBlock *conditionBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "cond");
+    llvm::BasicBlock *bodyBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "body");
+    llvm::BasicBlock *continueBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "cont");
+
+    IR::ctx.builder.CreateBr(conditionBB);
+
+    // condition基本块
+    function->getBasicBlockList().push_back(conditionBB);
+    IR::ctx.builder.SetInsertPoint(conditionBB);
+
+    // 计算条件表达式
+    llvm::Value *value = condition->codeGen();
+
+    // 隐式类型转换
+    Typename type = TypeSystem::fromValue(value);
+    if (type != Typename::BOOL) {
+        value = TypeSystem::cast(value, Typename::BOOL);
+    }
+
+    // 跳转到body基本块
+    IR::ctx.builder.CreateCondBr(value, bodyBB, continueBB);
+
+    // body基本块
+    function->getBasicBlockList().push_back(bodyBB);
+    IR::ctx.builder.SetInsertPoint(bodyBB);
+
+    // 生成body语句
+    body->codeGen();
+
+    if (IR::ctx.builder.GetInsertBlock()) {
+        // 跳转到condition基本块
+        IR::ctx.builder.CreateBr(conditionBB);
+    }
+
+    // continue基本块
+    function->getBasicBlockList().push_back(continueBB);
+    IR::ctx.builder.SetInsertPoint(continueBB);
+
     return nullptr;
 }
 
