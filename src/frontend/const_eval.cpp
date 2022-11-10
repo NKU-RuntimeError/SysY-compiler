@@ -330,6 +330,11 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 
 void AST::FunctionArg::constEval(AST::Base *&root) {
     for (auto &s: size) {
+        // 跳过第一维度的参数，例：int a[][3]，第一维为nullptr
+        if (!s) {
+            continue;
+        }
+
         constEvalTp(s);
 
         // 确保求值成功
