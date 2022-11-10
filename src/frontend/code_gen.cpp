@@ -314,7 +314,8 @@ llvm::Value *AST::FunctionDef::codeGen() {
     IR::ctx.local = false;
 
     // 验证函数
-    if (llvm::verifyFunction(*function)) {
+    if (llvm::verifyFunction(*function, &llvm::outs())) {
+        IR::show();
         throw std::logic_error("function verification failed");
     }
 
