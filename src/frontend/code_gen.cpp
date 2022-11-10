@@ -456,29 +456,34 @@ llvm::Value *AST::FunctionCallExpr::codeGen() {
 }
 
 static std::tuple<llvm::Value *, llvm::Value *, Typename>
-binaryExprTypeFix(llvm::Value *L, llvm::Value *R) {
+binaryExprTypeFix(llvm::Value *L, llvm::Value *R, std::optional<Typename> wantType = std::nullopt) {
     // 获得左右子树类型
     Typename LType = TypeSystem::fromValue(L);
     Typename RType = TypeSystem::fromValue(R);
 
     // 获得该节点的计算类型
-    // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
-    // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
-    Typename nodeType = static_cast<Typename>(std::max(
-            static_cast<int>(LType),
-            static_cast<int>(RType)
-    ));
+    Typename calcType;
+    if (wantType) {
+        calcType = *wantType;
+    } else {
+        // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
+        // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
+        calcType = static_cast<Typename>(std::max(
+                static_cast<int>(LType),
+                static_cast<int>(RType)
+        ));
+    }
 
     // 按需进行类型转换
-    if (LType != nodeType) {
-        L = TypeSystem::cast(L, nodeType);
+    if (LType != calcType) {
+        L = TypeSystem::cast(L, calcType);
     }
-    if (RType != nodeType) {
-        R = TypeSystem::cast(R, nodeType);
+    if (RType != calcType) {
+        R = TypeSystem::cast(R, calcType);
     }
 
     // 返回转换结果、计算类型
-    return {L, R, nodeType};
+    return {L, R, calcType};
 }
 
 llvm::Value *AST::BinaryExpr::codeGen() {
@@ -486,14 +491,12 @@ llvm::Value *AST::BinaryExpr::codeGen() {
     llvm::Value *L = lhs->codeGen();
     llvm::Value *R = rhs->codeGen();
 
-    // 对子表达式进行隐式类型转换
-    auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
-
     // 组合获得新表达式
     switch (op) {
 
         // 算数运算
         case Operator::ADD: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
             if (nodeType == Typename::INT) {
                 return IR::ctx.builder.CreateAdd(LFix, RFix);
             }
@@ -502,34 +505,118 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             }
             throw std::runtime_error("invalid type for operator +");
         }
-//        case Operator::SUB:
-//            return nullptr;
-//        case Operator::MUL:
-//            return nullptr;
-//        case Operator::DIV:
-//            return nullptr;
-//        case Operator::MOD:
-//            return nullptr;
-//
-//        // 逻辑运算
-//        case Operator::AND:
-//            return nullptr;
-//        case Operator::OR:
-//            return nullptr;
-//
-//        // 关系运算
-//        case Operator::LT:
-//            return nullptr;
-//        case Operator::LE:
-//            return nullptr;
-//        case Operator::GT:
-//            return nullptr;
-//        case Operator::GE:
-//            return nullptr;
-//        case Operator::EQ:
-//            return nullptr;
-//        case Operator::NE:
-//            return nullptr;
+        case Operator::SUB: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateSub(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFSub(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator -");
+        }
+        case Operator::MUL: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateMul(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFMul(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator *");
+        }
+        case Operator::DIV: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateSDiv(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFDiv(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator /");
+        }
+        case Operator::MOD: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateSRem(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator %");
+        }
+
+        // 逻辑运算
+        // TODO: 实现逻辑短路功能
+        case Operator::AND: {
+            auto [LFix, RFix, nodeType] =
+                    binaryExprTypeFix(L, R, Typename::BOOL);
+            return IR::ctx.builder.CreateAnd(LFix, RFix);
+        }
+        case Operator::OR: {
+            auto [LFix, RFix, nodeType] =
+                    binaryExprTypeFix(L, R, Typename::BOOL);
+            return IR::ctx.builder.CreateOr(LFix, RFix);
+        }
+
+        // 关系运算
+        case Operator::LT: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateICmpSLT(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFCmpOLT(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator <");
+        }
+        case Operator::LE: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateICmpSLE(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFCmpOLE(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator <=");
+        }
+        case Operator::GT: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateICmpSGT(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFCmpOGT(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator >");
+        }
+        case Operator::GE: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateICmpSGE(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFCmpOGE(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator >=");
+        }
+        case Operator::EQ: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateICmpEQ(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFCmpOEQ(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator ==");
+        }
+        case Operator::NE: {
+            auto [LFix, RFix, nodeType] = binaryExprTypeFix(L, R);
+            if (nodeType == Typename::INT) {
+                return IR::ctx.builder.CreateICmpNE(LFix, RFix);
+            }
+            if (nodeType == Typename::FLOAT) {
+                return IR::ctx.builder.CreateFCmpONE(LFix, RFix);
+            }
+            throw std::runtime_error("invalid type for operator !=");
+        }
     }
 
     throw std::logic_error(
