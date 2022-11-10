@@ -52,10 +52,10 @@ if __name__ == '__main__':
 
     # 判断是否有输入文件
     if os.path.exists(test_path + '.in'):
-        cmd.append('<')
-        cmd.append(test_path + '.in')
-
-    ret = subprocess.run(cmd, capture_output=True)
+        with open(test_path + '.in', 'rb') as f:
+            ret = subprocess.run(cmd, input=f.read(), capture_output=True)
+    else:
+        ret = subprocess.run(cmd, capture_output=True)
 
     # 删除.s文件和.bin文件
     os.remove('/tmp/' + test_name + '.s')
