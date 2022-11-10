@@ -62,7 +62,10 @@ if __name__ == '__main__':
     os.remove('/tmp/' + test_name + '.bin')
 
     # 拼接返回值，并与正确输出比较
-    output = ret.stdout.decode('utf-8') + str(ret.returncode) + '\n'
+    output = ret.stdout.decode('utf-8')
+    if not (len(output) == 0 or output.endswith('\n')):
+        output += '\n'
+    output += str(ret.returncode) + '\n'
 
     with open(test_path + '.out', 'r') as f:
         expected_output = f.read()
