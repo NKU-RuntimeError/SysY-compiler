@@ -444,10 +444,7 @@ llvm::Value *AST::IfStmt::codeGen() {
     llvm::Value *value = condition->codeGen();
 
     // 隐式类型转换
-    Typename type = TypeSystem::fromValue(value);
-    if (type != Typename::BOOL) {
-        value = TypeSystem::cast(value, Typename::BOOL);
-    }
+    value = unaryExprTypeFix(value, Typename::BOOL);
 
     llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
     llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "then");
@@ -521,6 +518,10 @@ llvm::Value *AST::WhileStmt::codeGen() {
     //           V                |
     // cont:                 <----+
     //
+
+    if (!IR::ctx.builder.GetInsertBlock()) {
+        return nullptr;
+    }
 
     llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
     llvm::BasicBlock *conditionBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "cond");
@@ -745,18 +746,115 @@ llvm::Value *AST::BinaryExpr::codeGen() {
         }
 
         // 逻辑运算
-        // TODO: 实现逻辑短路功能
         case Operator::AND: {
+
+            //
+            // +------------+
+            // |            |
+            // +------------+
+            //       |
+            //       +----->-----+
+            //     T V     F     |
+            // and:              |
+            // +------------+    |
+            // |            |    |
+            // +------------+    |
+            //       |-----------+
+            //       V
+            // andm:
+            // <PHI>
+            //
+
+            if (!IR::ctx.builder.GetInsertBlock()) {
+                return nullptr;
+            }
+
+            llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
+            llvm::BasicBlock *andBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "and");
+            llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "andm");
+
+            // 左侧表达式一定会生成
             llvm::Value *L = lhs->codeGen();
-            llvm::Value *R = rhs->codeGen();
-            auto [LFix, RFix] = binaryExprTypeFix(L, R, Typename::BOOL);
-            return IR::ctx.builder.CreateAnd(LFix, RFix);
+            L = unaryExprTypeFix(L, Typename::BOOL);
+            IR::ctx.builder.CreateCondBr(L, andBB, mergeBB);
+            auto incoming1 = IR::ctx.builder.GetInsertBlock();
+
+            // 生成右侧表达式
+            function->getBasicBlockList().push_back(andBB);
+            IR::ctx.builder.SetInsertPoint(andBB);
+
+            llvm::Value *R = lhs->codeGen();
+            R = unaryExprTypeFix(R, Typename::BOOL);
+            IR::ctx.builder.CreateBr(mergeBB);
+            auto incoming2 = IR::ctx.builder.GetInsertBlock();
+
+            // 生成合并块
+            function->getBasicBlockList().push_back(mergeBB);
+            IR::ctx.builder.SetInsertPoint(mergeBB);
+            llvm::PHINode *phi = IR::ctx.builder.CreatePHI(
+                    llvm::Type::getInt1Ty(IR::ctx.llvmCtx), 2
+            );
+
+            // 生成合并块的phi节点，将左右两侧的值传入
+            phi->addIncoming(L, incoming1);
+            phi->addIncoming(R, incoming2);
+
+            return phi;
         }
         case Operator::OR: {
+
+            //
+            // +------------+
+            // |            |
+            // +------------+
+            //       |
+            //       +----->-----+
+            //     F V     T     |
+            // or:               |
+            // +------------+    |
+            // |            |    |
+            // +------------+    |
+            //       |-----------+
+            //       V
+            // orm:
+            // <PHI>
+            //
+
+            if (!IR::ctx.builder.GetInsertBlock()) {
+                return nullptr;
+            }
+
+            llvm::Function *function = IR::ctx.builder.GetInsertBlock()->getParent();
+            llvm::BasicBlock *orBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "or");
+            llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(IR::ctx.llvmCtx, "orm");
+
+            // 左侧表达式一定会生成
             llvm::Value *L = lhs->codeGen();
-            llvm::Value *R = rhs->codeGen();
-            auto [LFix, RFix] = binaryExprTypeFix(L, R, Typename::BOOL);
-            return IR::ctx.builder.CreateOr(LFix, RFix);
+            L = unaryExprTypeFix(L, Typename::BOOL);
+            IR::ctx.builder.CreateCondBr(L, mergeBB, orBB);
+            auto incoming1 = IR::ctx.builder.GetInsertBlock();
+
+            // 生成右侧表达式
+            function->getBasicBlockList().push_back(orBB);
+            IR::ctx.builder.SetInsertPoint(orBB);
+
+            llvm::Value *R = lhs->codeGen();
+            R = unaryExprTypeFix(R, Typename::BOOL);
+            IR::ctx.builder.CreateBr(mergeBB);
+            auto incoming2 = IR::ctx.builder.GetInsertBlock();
+
+            // 生成合并块
+            function->getBasicBlockList().push_back(mergeBB);
+            IR::ctx.builder.SetInsertPoint(mergeBB);
+            llvm::PHINode *phi = IR::ctx.builder.CreatePHI(
+                    llvm::Type::getInt1Ty(IR::ctx.llvmCtx), 2
+            );
+
+            // 生成合并块的phi节点，将左右两侧的值传入
+            phi->addIncoming(L, incoming1);
+            phi->addIncoming(R, incoming2);
+
+            return phi;
         }
 
         // 关系运算
