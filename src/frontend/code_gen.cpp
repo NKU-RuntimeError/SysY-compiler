@@ -336,7 +336,7 @@ llvm::Value *AST::AssignStmt::codeGen() {
         rhs = TypeSystem::cast(rhs, lType);
     }
 
-    IR::ctx.builder.CreateStore(lhs, rhs);
+    IR::ctx.builder.CreateStore(rhs, lhs);
 
     // SysY中的赋值语句没有值，因此返回空指针即可
     return nullptr;
