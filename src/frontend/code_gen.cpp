@@ -226,6 +226,11 @@ llvm::Value *AST::VariableDecl::codeGen() {
                         TypeSystem::get(type, convertArraySize(def->size))
                 );
                 var->setInitializer(initVal);
+            } else {
+                // 未初始化的全局变量默认初始化为0
+                var->setInitializer(llvm::Constant::getNullValue(
+                        TypeSystem::get(type, convertArraySize(def->size))
+                ));
             }
         }
     }
