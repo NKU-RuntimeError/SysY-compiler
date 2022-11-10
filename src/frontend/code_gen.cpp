@@ -313,6 +313,16 @@ llvm::Value *AST::FunctionDef::codeGen() {
     IR::ctx.symbolTable.pop();
     IR::ctx.local = false;
 
+    // void函数需要在没有terminator的BB后面插入一个ret void
+    if (returnType == Typename::VOID) {
+        for (auto &BB : function->getBasicBlockList()) {
+            if (BB.getTerminator() == nullptr) {
+                IR::ctx.builder.SetInsertPoint(&BB);
+                IR::ctx.builder.CreateRetVoid();
+            }
+        }
+    }
+
     // 验证函数
     if (llvm::verifyFunction(*function, &llvm::outs())) {
         IR::show();
