@@ -59,6 +59,7 @@ void PassManager::run(int optLevel, const std::string &filename) {
                 llvm::OptimizationLevel::O3
         );
 
+        log("PM") << "optimizing module" << std::endl;
         MPM.run(IR::ctx.module, MAM);
 
         // 展示优化后的IR
