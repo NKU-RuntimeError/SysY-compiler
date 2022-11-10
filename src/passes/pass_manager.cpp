@@ -20,15 +20,14 @@ void PassManager::run(int optLevel, const std::string &filename) {
     llvm::InitializeAllAsmPrinters();
 
     std::string err;
-    auto triple = "armv7-unknown-linux-gnu";
+    auto triple = "arm-unknown-linux-gnu";
     auto target = llvm::TargetRegistry::lookupTarget(triple, err);
     if (!target) {
         throw std::logic_error(err);
     }
 
-    // only for raspberry pi 4b
-    auto CPU = "cortex-a72";
-    auto features = "";
+    auto CPU = "generic";
+    auto features = "+soft-float";
     auto targetMachine =
             target->createTargetMachine(triple, CPU, features, {}, {});
 
