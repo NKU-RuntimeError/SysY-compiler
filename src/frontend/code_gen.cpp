@@ -783,7 +783,7 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             function->getBasicBlockList().push_back(andBB);
             IR::ctx.builder.SetInsertPoint(andBB);
 
-            llvm::Value *R = lhs->codeGen();
+            llvm::Value *R = rhs->codeGen();
             R = unaryExprTypeFix(R, Typename::BOOL);
             IR::ctx.builder.CreateBr(mergeBB);
             auto incoming2 = IR::ctx.builder.GetInsertBlock();
@@ -838,7 +838,7 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             function->getBasicBlockList().push_back(orBB);
             IR::ctx.builder.SetInsertPoint(orBB);
 
-            llvm::Value *R = lhs->codeGen();
+            llvm::Value *R = rhs->codeGen();
             R = unaryExprTypeFix(R, Typename::BOOL);
             IR::ctx.builder.CreateBr(mergeBB);
             auto incoming2 = IR::ctx.builder.GetInsertBlock();
