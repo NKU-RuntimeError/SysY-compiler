@@ -484,7 +484,9 @@ llvm::Value *AST::WhileStmt::codeGen() {
     IR::ctx.builder.SetInsertPoint(bodyBB);
 
     // 生成body语句
+    IR::ctx.loops.push({conditionBB, continueBB});
     body->codeGen();
+    IR::ctx.loops.pop();
 
     if (IR::ctx.builder.GetInsertBlock()) {
         // 跳转到condition基本块
@@ -499,10 +501,32 @@ llvm::Value *AST::WhileStmt::codeGen() {
 }
 
 llvm::Value *AST::BreakStmt::codeGen() {
+    if (IR::ctx.loops.empty()) {
+        throw std::runtime_error("break statement outside of loop");
+    }
+
+    if (!IR::ctx.builder.GetInsertBlock()) {
+        return nullptr;
+    }
+
+    IR::ctx.builder.CreateBr(IR::ctx.loops.top().breakBB);
+
+    IR::ctx.builder.ClearInsertionPoint();
     return nullptr;
 }
 
 llvm::Value *AST::ContinueStmt::codeGen() {
+    if (IR::ctx.loops.empty()) {
+        throw std::runtime_error("break statement outside of loop");
+    }
+
+    if (!IR::ctx.builder.GetInsertBlock()) {
+        return nullptr;
+    }
+
+    IR::ctx.builder.CreateBr(IR::ctx.loops.top().continueBB);
+
+    IR::ctx.builder.ClearInsertionPoint();
     return nullptr;
 }
 
