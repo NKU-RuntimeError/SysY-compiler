@@ -222,7 +222,7 @@ llvm::Value *AST::ConstVariableDecl::codeGen() {
     for (auto def: constVariableDefs) {
         // 确定常量名称，若为局部常量，则补充函数前缀
         std::string varName;
-        if (IR::ctx.local) {
+        if (IR::ctx.function) {
             auto func = IR::ctx.builder.GetInsertBlock()->getParent();
             varName = func->getName().str() + "." + def->name;
         } else {
@@ -254,7 +254,7 @@ llvm::Value *AST::ConstVariableDecl::codeGen() {
 
 llvm::Value *AST::VariableDecl::codeGen() {
     // 生成局部变量/全局变量
-    if (IR::ctx.local) {
+    if (IR::ctx.function) {
         // 局部变量
         for (auto def: variableDefs) {
             // 生成局部变量
@@ -360,7 +360,7 @@ llvm::Value *AST::FunctionDef::codeGen() {
     IR::ctx.builder.SetInsertPoint(entryBlock);
 
     // 进入新的作用域
-    IR::ctx.local = true;
+    IR::ctx.function = function;
     IR::ctx.symbolTable.push();
 
     // 为参数开空间，并保存在符号表中
@@ -380,7 +380,7 @@ llvm::Value *AST::FunctionDef::codeGen() {
 
     // 退出作用域
     IR::ctx.symbolTable.pop();
-    IR::ctx.local = false;
+    IR::ctx.function = nullptr;
 
     // void函数需要在没有terminator的BB后面插入一个ret void
     if (returnType == Typename::VOID) {
@@ -608,7 +608,10 @@ llvm::Value *AST::ReturnStmt::codeGen() {
     }
 
     if (expr) {
-        IR::ctx.builder.CreateRet(expr->codeGen());
+        // 返回值隐式类型转换
+        Typename wantType = TypeSystem::fromType(IR::ctx.function->getReturnType());
+        llvm::Value *value = unaryExprTypeFix(expr->codeGen(), wantType);
+        IR::ctx.builder.CreateRet(value);
     } else {
         IR::ctx.builder.CreateRetVoid();
     }
