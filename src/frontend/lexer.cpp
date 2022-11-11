@@ -108,5 +108,5 @@ int yylex() {
     if (auto token = lexer.getToken()) {
         return *token;
     }
-    return YYEOF;
+    return 0;
 }
