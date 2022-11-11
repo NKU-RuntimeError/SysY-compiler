@@ -393,13 +393,19 @@ llvm::Value *AST::FunctionDef::codeGen() {
     IR::ctx.symbolTable.pop();
     IR::ctx.function = nullptr;
 
-    // void函数需要在没有terminator的BB后面插入一个ret void
-    if (returnType == Typename::VOID) {
-        for (auto &BB : function->getBasicBlockList()) {
-            if (BB.getTerminator() == nullptr) {
-                IR::ctx.builder.SetInsertPoint(&BB);
-                IR::ctx.builder.CreateRetVoid();
-            }
+    // 对没有返回值的分支加入默认返回值
+    for (auto &BB : function->getBasicBlockList()) {
+        if (BB.getTerminator()) {
+            continue;
+        }
+
+        IR::ctx.builder.SetInsertPoint(&BB);
+        if (returnType == Typename::VOID) {
+            IR::ctx.builder.CreateRetVoid();
+        } else {
+            IR::ctx.builder.CreateRet(
+                    llvm::UndefValue::get(TypeSystem::get(returnType))
+            );
         }
     }
 
