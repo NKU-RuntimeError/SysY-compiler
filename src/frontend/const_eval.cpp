@@ -32,18 +32,17 @@ static Typename getType(const std::variant<int, float> &v) {
     }
 }
 
-// 对编译期常量进行类型转换，仅支持int->float的转换
+// 对编译期常量进行类型转换
 static std::variant<int, float>
 typeFix(std::variant<int, float> v, Typename wantType) {
     // 获得存储类型
     Typename holdType = getType(v);
 
-    // 仅允许进行以下一种类型的转换：
-    // 参考SysY语言定义
-    // "数组元素初值类型应与数组元素声明类型一致，例如整型数组初值列表中不能出现浮点型元素；
-    // 但是浮点型数组的初始化列表中可以出现整型常量或整型常量表达式"
     if (holdType == Typename::INT && wantType == Typename::FLOAT) {
         return static_cast<float>(std::get<int>(v));
+    }
+    if (holdType == Typename::FLOAT && wantType == Typename::INT) {
+        return static_cast<int>(std::get<float>(v));
     }
 
     throw std::runtime_error("unexpected cast");
@@ -97,7 +96,11 @@ static void constExprCheck(AST::Expr *size) {
     }
 }
 
-static void initializerFlatten(AST::InitializerElement *initializerElement, std::deque<int> size) {
+static void initializerFlatten(
+        AST::InitializerElement *initializerElement,
+        std::deque<int> size,
+        Typename type
+) {
     // 递归出口，到达最底层表达式
     if (std::holds_alternative<AST::Expr *>(initializerElement->element)) {
         return;
@@ -127,7 +130,7 @@ static void initializerFlatten(AST::InitializerElement *initializerElement, std:
     // 弹出第一个维度，递归向下做flatten
     size.pop_front();
     for (auto flattenElement: initializerList->elements) {
-        initializerFlatten(flattenElement, size);
+        initializerFlatten(flattenElement, size, type);
 
         // 区分 单个元素/flatten列表 两种情况，加到当前层的临时列表中
         if (std::holds_alternative<AST::Expr *>(flattenElement->element)) {
@@ -150,10 +153,13 @@ static void initializerFlatten(AST::InitializerElement *initializerElement, std:
     }
 
     // 如果当前层展开的结果数量不足，则用0填充
-    // 注意：这里的0是int类型的0，不是float类型的0，在下一步可以进行隐式类型转换，在此不用担心
     for (size_t i = elements.size(); i < fullSize; i++) {
         auto ptr = Memory::make<AST::InitializerElement>();
-        ptr->element = Memory::make<AST::NumberExpr>(0);
+        if (type == Typename::INT) {
+            ptr->element = Memory::make<AST::NumberExpr>(0);
+        } else {
+            ptr->element = Memory::make<AST::NumberExpr>(0.f);
+        }
         elements.emplace_back(ptr);
     }
 
@@ -211,7 +217,8 @@ static void initializerSplit(AST::InitializerElement *initializerElement, std::d
 
 static void fixNestedInitializer(
         AST::InitializerElement *initializerElement,
-        const std::vector<AST::Expr *> &size
+        const std::vector<AST::Expr *> &size,
+        Typename type
 ) {
     std::deque<int> sizeDeque;
     // 在维度进行完常量求值后，再进行数组修复，因此可以确保一定是>=0的字面值常量
@@ -221,7 +228,7 @@ static void fixNestedInitializer(
     }
 
     // 将多维数组展开为一维数组
-    initializerFlatten(initializerElement, sizeDeque);
+    initializerFlatten(initializerElement, sizeDeque, type);
 
     // 将数组拆分为多维数组
     initializerSplit(initializerElement, sizeDeque);
@@ -270,7 +277,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
         }
 
         // 修复嵌套数组
-        fixNestedInitializer(def->initVal, def->size);
+        fixNestedInitializer(def->initVal, def->size, type);
 
         // 尝试对初值求值
         constEvalTp(def->initVal);
@@ -316,7 +323,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
         }
 
         // 修复嵌套数组
-        fixNestedInitializer(def->initVal, def->size);
+        fixNestedInitializer(def->initVal, def->size, type);
 
         // 尝试对初值求值
         // 全局变量需要可编译期求值，因此需要在此尝试求值
@@ -330,6 +337,11 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 
 void AST::FunctionArg::constEval(AST::Base *&root) {
     for (auto &s: size) {
+        // 跳过第一维度的参数，例：int a[][3]，第一维为nullptr
+        if (!s) {
+            continue;
+        }
+
         constEvalTp(s);
 
         // 确保求值成功

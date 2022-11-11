@@ -54,14 +54,8 @@ int main(int argc, char *argv[]) {
 
         log("main") << "AST root at: " << AST::root << std::endl;
 
-        // 打印原始AST
-        AST::show();
-
         // 常量求值，包括：常量初值、全局变量初值、数组维度
         AST::root->constEval(AST::root);
-
-        // 展示常量求值后的AST
-        AST::show();
 
         // IR生成
         AST::root->codeGen();

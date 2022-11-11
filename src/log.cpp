@@ -2,7 +2,6 @@
 #include <iomanip>
 #include "log.h"
 
-
 class DummyLogStream : public std::ostream {
     class DummyLogBuffer : public std::streambuf {
     public:
@@ -20,7 +19,6 @@ inline static std::ostream &log_(std::ostream &out, std::string_view module, boo
     return out;
 }
 
-
 std::ostream &log(std::string_view module) {
 #ifdef CONF_LOG_OUTPUT
     return log_(std::cout, module, false);
@@ -32,4 +30,12 @@ std::ostream &log(std::string_view module) {
 
 std::ostream &err(std::string_view module) {
     return log_(std::cout, module, true);
+}
+
+llvm::raw_ostream &log_llvm() {
+#ifdef CONF_LOG_OUTPUT
+    return llvm::outs();
+#else
+    return llvm::nulls();
+#endif
 }

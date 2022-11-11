@@ -53,7 +53,8 @@ if __name__ == '__main__':
     # 判断是否有输入文件
     if os.path.exists(test_path + '.in'):
         with open(test_path + '.in', 'rb') as f:
-            ret = subprocess.run(cmd, input=f.read(), capture_output=True)
+            unix_format = f.read().replace(b'\r\n', b'\n')
+            ret = subprocess.run(cmd, input=unix_format, capture_output=True)
     else:
         ret = subprocess.run(cmd, capture_output=True)
 
@@ -70,7 +71,8 @@ if __name__ == '__main__':
     with open(test_path + '.out', 'r') as f:
         expected_output = f.read()
 
-    if output.strip('\n') == expected_output.strip('\n'):
+    if output.replace('\r\n', '\n').strip('\n') == \
+            expected_output.replace('\r\n', '\n').strip('\n'):
         exit(0)
     else:
         print("output:")
