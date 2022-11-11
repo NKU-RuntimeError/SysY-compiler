@@ -11,6 +11,72 @@
 ////////////////////////////////////////////////////////////////////////////////
 // helper函数
 
+static std::tuple<llvm::Value *, Typename>
+unaryExprTypeFix(llvm::Value *value, Typename minType, Typename maxType) {
+    Typename type = TypeSystem::fromValue(value);
+
+    // 获得该节点的计算类型
+    Typename calcType = static_cast<Typename>(std::clamp(
+            static_cast<int>(type),
+            static_cast<int>(minType),
+            static_cast<int>(maxType)
+    ));
+
+    // 按需进行类型转换
+    if (type != calcType) {
+        value = TypeSystem::cast(value, calcType);
+    }
+
+    // 返回转换结果、计算类型
+    return {value, calcType};
+}
+
+inline static llvm::Value *
+unaryExprTypeFix(llvm::Value *value, Typename wantType) {
+    return std::get<0>(unaryExprTypeFix(value, wantType, wantType));
+}
+
+static std::tuple<llvm::Value *, llvm::Value *, Typename>
+binaryExprTypeFix(llvm::Value *L, llvm::Value *R, Typename minType, Typename maxType) {
+    // 获得左右子树类型
+    Typename LType = TypeSystem::fromValue(L);
+    Typename RType = TypeSystem::fromValue(R);
+
+    // 获得该节点的计算类型
+    Typename calcType;
+
+    // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
+    // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
+    calcType = static_cast<Typename>(std::max(
+            static_cast<int>(LType),
+            static_cast<int>(RType)
+    ));
+
+    calcType = static_cast<Typename>(std::clamp(
+            static_cast<int>(calcType),
+            static_cast<int>(minType),
+            static_cast<int>(maxType)
+    ));
+
+    // 按需进行类型转换
+    if (LType != calcType) {
+        L = TypeSystem::cast(L, calcType);
+    }
+    if (RType != calcType) {
+        R = TypeSystem::cast(R, calcType);
+    }
+
+    // 返回转换结果、计算类型
+    return {L, R, calcType};
+}
+
+inline static std::tuple<llvm::Value *, llvm::Value *>
+binaryExprTypeFix(llvm::Value *L, llvm::Value *R, Typename wantType) {
+    auto [LFixed, RFixed, calcType] =
+            binaryExprTypeFix(L, R, wantType, wantType);
+    return {LFixed, RFixed};
+}
+
 static std::vector<std::optional<int>>
 convertArraySize(std::vector<AST::Expr *> &size) {
     std::vector<std::optional<int>> result;
@@ -113,96 +179,41 @@ static llvm::Value *
 getVariablePointer(const std::string &name, const std::vector<AST::Expr *> &size) {
     llvm::Value *var = IR::ctx.symbolTable.lookup(name);
 
-    // 若为数组，则使用getelementptr指令访问元素
-    if (!size.empty()) {
-        std::vector<llvm::Value *> indices;
-
-        // 计算各维度
-        // 每个getelementptr多一个前缀维度0的原因：
-        // https://www.llvm.org/docs/GetElementPtr.html#why-is-the-extra-0-index-required
-        indices.emplace_back(llvm::ConstantInt::get(
-                llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
-                0
-        ));
-        for (auto s: size) {
-            indices.emplace_back(s->codeGen());
-        }
-
-        var = IR::ctx.builder.CreateGEP(
-                var->getType()->getPointerElementType(),
-                var,
-                indices
-        );
+    // 计算维度
+    std::vector<llvm::Value *> indices;
+    for (auto s: size) {
+        indices.emplace_back(s->codeGen());
     }
 
+    // 寻址
+    for (auto index: indices) {
+        if (var->getType()->getPointerElementType()->isPointerTy()) {
+            var = IR::ctx.builder.CreateLoad(
+                    var->getType()->getPointerElementType(),
+                    var
+            );
+            var = IR::ctx.builder.CreateGEP(
+                    var->getType()->getPointerElementType(),
+                    var,
+                    index
+            );
+        } else {
+            var = IR::ctx.builder.CreateGEP(
+                    var->getType()->getPointerElementType(),
+                    var,
+                    {
+                            llvm::ConstantInt::get(
+                                    llvm::Type::getInt32Ty(IR::ctx.llvmCtx),
+                                    0
+                            ),
+                            index
+                    }
+            );
+        }
+    }
     return var;
 }
 
-static std::tuple<llvm::Value *, Typename>
-unaryExprTypeFix(llvm::Value *value, Typename minType, Typename maxType) {
-    Typename type = TypeSystem::fromValue(value);
-
-    // 获得该节点的计算类型
-    Typename calcType = static_cast<Typename>(std::clamp(
-            static_cast<int>(type),
-            static_cast<int>(minType),
-            static_cast<int>(maxType)
-    ));
-
-    // 按需进行类型转换
-    if (type != calcType) {
-        value = TypeSystem::cast(value, calcType);
-    }
-
-    // 返回转换结果、计算类型
-    return {value, calcType};
-}
-
-inline static llvm::Value *
-unaryExprTypeFix(llvm::Value *value, Typename wantType) {
-    return std::get<0>(unaryExprTypeFix(value, wantType, wantType));
-}
-
-static std::tuple<llvm::Value *, llvm::Value *, Typename>
-binaryExprTypeFix(llvm::Value *L, llvm::Value *R, Typename minType, Typename maxType) {
-    // 获得左右子树类型
-    Typename LType = TypeSystem::fromValue(L);
-    Typename RType = TypeSystem::fromValue(R);
-
-    // 获得该节点的计算类型
-    Typename calcType;
-
-    // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
-    // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
-    calcType = static_cast<Typename>(std::max(
-            static_cast<int>(LType),
-            static_cast<int>(RType)
-    ));
-
-    calcType = static_cast<Typename>(std::clamp(
-            static_cast<int>(calcType),
-            static_cast<int>(minType),
-            static_cast<int>(maxType)
-    ));
-
-    // 按需进行类型转换
-    if (LType != calcType) {
-        L = TypeSystem::cast(L, calcType);
-    }
-    if (RType != calcType) {
-        R = TypeSystem::cast(R, calcType);
-    }
-
-    // 返回转换结果、计算类型
-    return {L, R, calcType};
-}
-
-inline static std::tuple<llvm::Value *, llvm::Value *>
-binaryExprTypeFix(llvm::Value *L, llvm::Value *R, Typename wantType) {
-    auto [LFixed, RFixed, calcType] =
-            binaryExprTypeFix(L, R, wantType, wantType);
-    return {LFixed, RFixed};
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // IR生成函数
@@ -673,10 +684,13 @@ llvm::Value *AST::FunctionCallExpr::codeGen() {
     // 隐式类型转换
     size_t i = 0;
     for (const auto &argument : function->args()) {
-        Typename wantType = TypeSystem::fromType(argument.getType());
-        Typename gotType = TypeSystem::fromValue(values[i]);
-        if (wantType != gotType) {
-            values[i] = TypeSystem::cast(values[i], wantType);
+        // 指针传参（用于数组）不进行隐式类型转换，普通变量才会进行隐式类型转换
+        if (!argument.getType()->isPointerTy()) {
+            Typename wantType = TypeSystem::fromType(argument.getType());
+            Typename gotType = TypeSystem::fromValue(values[i]);
+            if (wantType != gotType) {
+                values[i] = TypeSystem::cast(values[i], wantType);
+            }
         }
         i++;
     }
@@ -960,5 +974,18 @@ llvm::Value *AST::NumberExpr::codeGen() {
 
 llvm::Value *AST::VariableExpr::codeGen() {
     llvm::Value *var = getVariablePointer(name, size);
-    return IR::ctx.builder.CreateLoad(var->getType()->getPointerElementType(), var);
+    // 数组使用指针传参
+    // 普遍变量使用值传参
+    if (var->getType()->getPointerElementType()->isArrayTy()) {
+        return IR::ctx.builder.CreateGEP(
+                var->getType()->getPointerElementType(),
+                var,
+                {
+                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(IR::ctx.llvmCtx), 0),
+                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(IR::ctx.llvmCtx), 0)
+                }
+        );
+    } else {
+        return IR::ctx.builder.CreateLoad(var->getType()->getPointerElementType(), var);
+    }
 }
