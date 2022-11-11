@@ -84,6 +84,9 @@ static void dynamicInitValCodeGen(
                 alloca,
                 getGEPIndices(indices)
         );
+        // 普通数组初值隐式类型转换
+        Typename wantType = TypeSystem::fromType(var->getType()->getPointerElementType());
+        val = unaryExprTypeFix(val, wantType);
         IR::ctx.builder.CreateStore(val, var);
         return;
     }
