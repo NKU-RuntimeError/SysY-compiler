@@ -5,7 +5,7 @@ namespace IR {
     Context ctx;
 
     void show() {
-        auto &stream = log("IR") << "show IR" << std::endl;
-        ctx.module.print(llvm::outs(), nullptr);
+        log("IR") << "show IR" << std::endl;
+        ctx.module.print(log_llvm(), nullptr);
     }
 }
