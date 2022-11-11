@@ -32,18 +32,17 @@ static Typename getType(const std::variant<int, float> &v) {
     }
 }
 
-// 对编译期常量进行类型转换，仅支持int->float的转换
+// 对编译期常量进行类型转换
 static std::variant<int, float>
 typeFix(std::variant<int, float> v, Typename wantType) {
     // 获得存储类型
     Typename holdType = getType(v);
 
-    // 仅允许进行以下一种类型的转换：
-    // 参考SysY语言定义
-    // "数组元素初值类型应与数组元素声明类型一致，例如整型数组初值列表中不能出现浮点型元素；
-    // 但是浮点型数组的初始化列表中可以出现整型常量或整型常量表达式"
     if (holdType == Typename::INT && wantType == Typename::FLOAT) {
         return static_cast<float>(std::get<int>(v));
+    }
+    if (holdType == Typename::FLOAT && wantType == Typename::INT) {
+        return static_cast<int>(std::get<float>(v));
     }
 
     throw std::runtime_error("unexpected cast");
