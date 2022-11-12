@@ -9,7 +9,7 @@ namespace AST {
 
     void show() {
         llvm::json::Value json = std::move(root->toJSON());
-        log("AST") << "show AST:" << std::endl <<
-                   llvm::formatv("{0:2}", json).str() << std::endl;
+        log("AST") << "show AST:" << std::endl;
+        log_llvm() << json << '\n';
     }
 }
