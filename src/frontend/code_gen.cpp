@@ -268,8 +268,14 @@ llvm::Value *AST::VariableDecl::codeGen() {
     if (IR::ctx.function) {
         // 局部变量
         for (auto def: variableDefs) {
+            // 在函数头部使用alloca分配空间
+            llvm::IRBuilder<> entryBuilder(
+                    &IR::ctx.function->getEntryBlock(),
+                    IR::ctx.function->getEntryBlock().begin()
+            );
+
             // 生成局部变量
-            llvm::AllocaInst *alloca = IR::ctx.builder.CreateAlloca(
+            llvm::AllocaInst *alloca = entryBuilder.CreateAlloca(
                     TypeSystem::get(type, convertArraySize(def->size)),
                     nullptr,
                     def->name
