@@ -9,6 +9,7 @@
 #include <llvm/IR/Value.h>
 #include "operator.h"
 #include "type.h"
+#include "position.h"
 
 // 使用Memory管理内存，最后统一释放，由于bison对智能指针支持不好，因此使用此解决方案
 
@@ -20,6 +21,8 @@ namespace AST {
     // 子类可以选择性实现这些方法
     // 注意：这不是一个好的设计，只是为了简化代码
     struct Base {
+        Range range{};
+
         virtual llvm::json::Value toJSON() {
             throw std::logic_error("not implemented");
         }

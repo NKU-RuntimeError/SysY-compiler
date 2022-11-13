@@ -16,7 +16,7 @@ inline static void lexerLog(
     auto &stream = log("lexer");
     stream << std::setw(20) << token <<
            std::setw(20) << lexeme <<
-           std::setw(10) << currLine <<
+           std::setw(10) << currRow <<
            std::setw(10) << currCol;
     if (ptr) {
         stream << std::setw(20) << ptr;
@@ -28,7 +28,7 @@ inline static void lexerLog(
 
 static Pattern patterns[]{
         {P_NEWLINE,       T_CALLBACK {
-            currLine++;
+            currRow++;
             currCol = 1;
             return std::nullopt;
         }},
@@ -43,9 +43,11 @@ static Pattern patterns[]{
                     str.end(),
                     [](char c) { return c == '\n'; }
             );
-            if (newLineCount > 0) {
-                currLine += newLineCount;
-                currCol = 1;
+            currRow += newLineCount;
+
+            if (size_t lastNewLinePos = str.find_last_of('\n');
+                    lastNewLinePos != std::string::npos) {
+                currCol = str.length() - lastNewLinePos;
             } else {
                 currCol += str.length();
             }
@@ -53,7 +55,7 @@ static Pattern patterns[]{
         }},
         {P_LINE_COMMENT,  T_CALLBACK {
             lexerLog("LINE_COMMENT");
-            currLine++;
+            currRow++;
             currCol = 1;
             return std::nullopt;
         }},
@@ -239,7 +241,10 @@ static Pattern patterns[]{
             return VALUE_INT;
         }},
         {P_IDENTIFIER,    T_CALLBACK {
-            yylval.strType = Memory::make<std::string>(str);
+            yylval.strType = WithPosition(
+                    Memory::make<std::string>(str),
+                    {currRow, currCol}
+            );
             lexerLog("IDENTIFIER", str);
             currCol += str.length();
             return IDENTIFIER;
@@ -249,7 +254,7 @@ static Pattern patterns[]{
         {".+",            T_CALLBACK {
             throw std::runtime_error(
                     "Unknown token: " + str + "at " +
-                    std::to_string(currLine) + ":" + std::to_string(currCol)
+                    std::to_string(currRow) + ":" + std::to_string(currCol)
             );
         }}
 };

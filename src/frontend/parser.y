@@ -7,12 +7,17 @@
 int yylex();
 extern int yyparse();
 void yyerror(const char* s);
+
+// 在词法分析器中定义的全局变量
+extern size_t currRow;
+extern size_t currCol;
 %}
 
 %code requires {
 #include "type.h"
 #include "mem.h"
 #include "AST.h"
+#include "position.h"
 }
 
 // 在变量声明和函数声明，由于前序均为 TYPENAME IDENTIFIER
@@ -65,7 +70,7 @@ void yyerror(const char* s);
     AST::VariableExpr *variableExprType;
     Typename typenameType;
     Operator operatorType;
-    std::string *strType;
+    WithPosition<std::string *> strType;
     int intType;
     float floatType;
 }
@@ -218,7 +223,7 @@ identifier_or_array
     }
     | IDENTIFIER {
         $$ = Memory::make<AST::Array>();
-	$$->name = *$1;
+	$$->name = *$1.value;
     }
     ;
 
@@ -322,7 +327,7 @@ func_def
     : func_type IDENTIFIER LPAREN func_arg_list RPAREN block {
         $$ = Memory::make<AST::FunctionDef>();
 	$$->returnType = $1;
-	$$->name = *$2;
+	$$->name = *$2.value;
 	$$->arguments = $4->arguments;
 	$$->body = $6;
     }
@@ -364,7 +369,7 @@ func_arg
 func_arg_identifier_or_array
     : IDENTIFIER {
         $$ = Memory::make<AST::FunctionArg>();
-	$$->name = *$1;
+	$$->name = *$1.value;
     }
     | func_arg_array {
         $$ = $1;
@@ -378,7 +383,7 @@ func_arg_array
     }
     | IDENTIFIER LBRACKET RBRACKET {
         $$ = Memory::make<AST::FunctionArg>();
-	$$->name = *$1;
+	$$->name = *$1.value;
 	$$->size.emplace_back(nullptr);
     }
     ;
@@ -489,7 +494,7 @@ lval
     }
     | IDENTIFIER {
         $$ = Memory::make<AST::LValue>();
-	$$->name = *$1;
+	$$->name = *$1.value;
     }
     ;
 
@@ -527,8 +532,30 @@ unary_expr
     }
     | IDENTIFIER LPAREN func_param_list RPAREN {
         auto ptr = Memory::make<AST::FunctionCallExpr>();
-	ptr->name = *$1;
-	ptr->params = $3->params;
+
+        if (*$1.value == "starttime") {
+            // 合法性检查
+            if ($3->params.size() != 0) {
+		throw std::runtime_error("starttime() takes no params");
+	    }
+            ptr->name = "_sysy_starttime";
+            ptr->params.emplace_back(
+                Memory::make<AST::NumberExpr>(static_cast<int>($1.position.row))
+	    );
+        } else if (*$1.value == "stoptime") {
+            // 合法性检查
+            if ($3->params.size() != 0) {
+		throw std::runtime_error("stoptime() takes no params");
+	    }
+            ptr->name = "_sysy_stoptime";
+            ptr->params.emplace_back(
+                Memory::make<AST::NumberExpr>(static_cast<int>($1.position.row))
+	    );
+	} else {
+	    ptr->name = *$1.value;
+	    ptr->params = $3->params;
+	}
+
 	$$ = ptr;
     }
     | PLUS unary_expr {

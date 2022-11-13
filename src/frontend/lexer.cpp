@@ -6,6 +6,7 @@
 #include <utility>
 #include "log.h"
 #include "mem.h"
+#include "position.h"
 #include "lexer.h"
 
 // 由于我们需要从语法分析器的头文件中得到所有token值
@@ -43,8 +44,8 @@ Pattern::Pattern(const std::string &pattern,
         : regex(fixGroup(pattern)), callback(std::move(callback)) {}
 
 // 记录行号，列号
-static size_t currLine = 1;
-static size_t currCol = 1;
+size_t currRow = 1;
+size_t currCol = 1;
 
 // 包含patterns数组
 // getToken函数通过从上到下遍历patterns数组，匹配第一个匹配的pattern

@@ -130,5 +130,6 @@ if (TEST_COMPETITION)
     add_competition_test_by_level(level2-4)
     add_competition_test_by_level(level2-5)
     add_competition_test_by_level(level2-6)
+    add_competition_test_by_level(perf_simple)
 
 endif ()

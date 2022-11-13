@@ -189,6 +189,44 @@ static void addPutfarrayPrototype() {
     func->getArg(1)->setName("a");
 }
 
+// void _sysy_starttime(int lineno)
+static void addSysyStarttimePrototype() {
+    std::vector<llvm::Type *> argTypes{
+        llvm::Type::getInt32Ty(IR::ctx.llvmCtx)
+    };
+    llvm::FunctionType *funcType = llvm::FunctionType::get(
+            llvm::Type::getVoidTy(IR::ctx.llvmCtx),
+            argTypes,
+            false
+    );
+    llvm::Function *func = llvm::Function::Create(
+            funcType,
+            llvm::Function::ExternalLinkage,
+            "_sysy_starttime",
+            IR::ctx.module
+    );
+    func->getArg(0)->setName("lineno");
+}
+
+// void _sysy_stoptime(int lineno)
+static void addSysyStoptimePrototype() {
+    std::vector<llvm::Type *> argTypes{
+        llvm::Type::getInt32Ty(IR::ctx.llvmCtx)
+    };
+    llvm::FunctionType *funcType = llvm::FunctionType::get(
+            llvm::Type::getVoidTy(IR::ctx.llvmCtx),
+            argTypes,
+            false
+    );
+    llvm::Function *func = llvm::Function::Create(
+            funcType,
+            llvm::Function::ExternalLinkage,
+            "_sysy_stoptime",
+            IR::ctx.module
+    );
+    func->getArg(0)->setName("lineno");
+}
+
 void addLibraryPrototype() {
     addGetintPrototype();
     addGetchPrototype();
@@ -200,4 +238,6 @@ void addLibraryPrototype() {
     addPutarrayPrototype();
     addPutfloatPrototype();
     addPutfarrayPrototype();
+    addSysyStarttimePrototype();
+    addSysyStoptimePrototype();
 }
