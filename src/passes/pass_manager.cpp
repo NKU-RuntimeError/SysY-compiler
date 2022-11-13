@@ -27,9 +27,13 @@ void PassManager::run(int optLevel, const std::string &filename) {
     }
 
     auto CPU = "generic";
-    auto features = "+soft-float";
+    auto features = "";
+    llvm::TargetOptions opt;
+#ifdef CONF_HARD_FLOAT
+    opt.FloatABIType = llvm::FloatABI::Hard;
+#endif
     auto targetMachine =
-            target->createTargetMachine(triple, CPU, features, {}, {});
+            target->createTargetMachine(triple, CPU, features, opt, {});
 
     IR::ctx.module.setDataLayout(targetMachine->createDataLayout());
     IR::ctx.module.setTargetTriple(triple);
