@@ -91,8 +91,17 @@ if (TEST_COMPETITION)
 
     # chmod +x
     execute_process(COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py)
-    function(add_competition_test group test_name)
-        add_test(NAME "${group}.${test_name}" COMMAND
+    function(add_functional_test group test_name)
+        add_test(NAME "func.${group}.${test_name}" COMMAND
+                python3
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py
+                ${CMAKE_CURRENT_BINARY_DIR}/sysy_compiler
+                ${CMAKE_CURRENT_SOURCE_DIR}
+                test/competition/${group}/${test_name}
+                )
+    endfunction()
+    function(add_perf_test group test_name)
+        add_test(NAME "perf.${group}.${test_name}" COMMAND
                 python3
                 ${CMAKE_CURRENT_SOURCE_DIR}/test/competition/test_wrapper.py
                 ${CMAKE_CURRENT_BINARY_DIR}/sysy_compiler
@@ -108,10 +117,8 @@ if (TEST_COMPETITION)
                 )
         foreach (competition_test_file ${competition_test_files})
             get_filename_component(competition_test_name ${competition_test_file} NAME_WE)
-            add_competition_test(
-                    ${level_name}
-                    ${competition_test_name}
-            )
+            add_functional_test(${level_name} ${competition_test_name})
+            add_perf_test(${level_name} ${competition_test_name})
         endforeach ()
     endfunction()
 
