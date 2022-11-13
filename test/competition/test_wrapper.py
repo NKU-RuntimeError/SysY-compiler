@@ -62,6 +62,10 @@ if __name__ == '__main__':
     os.remove('/tmp/' + test_name + '.s')
     os.remove('/tmp/' + test_name + '.bin')
 
+    # 运行时间输出
+    print('perf:')
+    print(ret.stderr.decode('utf-8'))
+
     # 拼接返回值，并与正确输出比较
     output = ret.stdout.decode('utf-8')
     if not (len(output) == 0 or output.endswith('\n')):
