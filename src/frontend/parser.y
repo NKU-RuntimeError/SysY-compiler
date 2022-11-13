@@ -7,6 +7,10 @@
 int yylex();
 extern int yyparse();
 void yyerror(const char* s);
+
+// 在词法分析器中定义的全局变量
+extern size_t currRow;
+extern size_t currCol;
 %}
 
 %code requires {
@@ -527,6 +531,11 @@ unary_expr
     }
     | IDENTIFIER LPAREN func_param_list RPAREN {
         auto ptr = Memory::make<AST::FunctionCallExpr>();
+
+        if (*$1 == "starttime") {Memory::make<AST::FunctionParamList>();
+            ptr->name = "_sysy_starttime";
+            ptr->params =
+        }
 	ptr->name = *$1;
 	ptr->params = $3->params;
 	$$ = ptr;
