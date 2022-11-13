@@ -38,7 +38,7 @@ jobs:
           version: "14.0"
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
-      - name Install Bison
+      - name: Install Bison
       - run: sudo apt install -y bison
 
       - name: Configure CMake
