@@ -11,6 +11,7 @@ option(LOG_OUTPUT "show log info" OFF)
 option(TEST_LEXER "test lexer using the lexer test file" OFF)
 option(TEST_PARSER "test parser using test file" OFF)
 option(TEST_COMPETITION "test all competition testcases" OFF)
+option(HARD_FLOAT "using hard float ABI" OFF)
 
 #
 # frontend part
@@ -51,6 +52,10 @@ list(APPEND HEADERS src/passes)
 
 if (LOG_OUTPUT)
     add_compile_definitions(CONF_LOG_OUTPUT)
+endif ()
+
+if (HARD_FLOAT)
+    add_compile_definitions(CONF_HARD_FLOAT)
 endif ()
 
 add_executable(sysy_compiler
