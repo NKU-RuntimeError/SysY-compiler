@@ -9,22 +9,13 @@
 #include <llvm/IR/Value.h>
 #include "operator.h"
 #include "type.h"
+#include "position.h"
 
 // 使用Memory管理内存，最后统一释放，由于bison对智能指针支持不好，因此使用此解决方案
 
 // 使用struct是因为默认权限为public，可以直接访问成员变量、成员函数
 
 namespace AST {
-
-    struct Position {
-        size_t row{};
-        size_t col{};
-    };
-
-    struct Range {
-        Position begin{};
-        Position end{};
-    };
 
     // 为了简化继承关系，我们将所有子类可能会实现的方法放在Base中
     // 子类可以选择性实现这些方法

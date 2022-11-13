@@ -241,7 +241,10 @@ static Pattern patterns[]{
             return VALUE_INT;
         }},
         {P_IDENTIFIER,    T_CALLBACK {
-            yylval.strType = Memory::make<std::string>(str);
+            yylval.strType = WithPosition(
+                    Memory::make<std::string>(str),
+                    {currRow, currCol}
+            );
             lexerLog("IDENTIFIER", str);
             currCol += str.length();
             return IDENTIFIER;
