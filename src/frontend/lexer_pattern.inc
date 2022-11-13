@@ -43,9 +43,11 @@ static Pattern patterns[]{
                     str.end(),
                     [](char c) { return c == '\n'; }
             );
-            if (newLineCount > 0) {
-                currRow += newLineCount;
-                currCol = 1;
+            currRow += newLineCount;
+
+            if (size_t lastNewLinePos = str.find_last_of('\n');
+                    lastNewLinePos != std::string::npos) {
+                currCol = str.length() - lastNewLinePos;
             } else {
                 currCol += str.length();
             }
