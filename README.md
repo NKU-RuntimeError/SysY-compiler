@@ -8,7 +8,7 @@
 
 基于LLVM框架实现的SysY（极简版C语言）编译器。支持将.sy文件编译为arm汇编语言文件。
 
-（SysY语言相关资料：https://gitlab.eduxiji.net/nscscc/compiler2022）
+（SysY语言相关资料：[https://gitlab.eduxiji.net/nscscc/compiler2022](https://gitlab.eduxiji.net/nscscc/compiler2022)）
 
 ## 二进制文件下载
 
