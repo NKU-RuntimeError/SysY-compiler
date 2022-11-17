@@ -3,7 +3,7 @@
 #include "IR.h"
 #include "type.h"
 
-Typename TypeSystem::fromType(llvm::Type *type) {
+Typename TypeSystem::from(llvm::Type *type) {
     if (type->isIntegerTy(32)) {
         return Typename::INT;
     }
@@ -17,14 +17,22 @@ Typename TypeSystem::fromType(llvm::Type *type) {
     throw std::runtime_error("value with unknown type");
 }
 
-Typename TypeSystem::fromValue(llvm::Value *value) {
-    return fromType(value->getType());
+Typename TypeSystem::from(llvm::Value *value) {
+    return from(value->getType());
+}
+
+Typename TypeSystem::from(const std::variant<int, float> &value) {
+    if (std::holds_alternative<int>(value)) {
+        return Typename::INT;
+    } else {
+        return Typename::FLOAT;
+    }
 }
 
 llvm::Value *TypeSystem::cast(llvm::Value *value, Typename wantType) {
 
     // 获取当前类型
-    Typename currType = fromValue(value);
+    Typename currType = from(value);
 
     // 增加节点，实现类型转换
 

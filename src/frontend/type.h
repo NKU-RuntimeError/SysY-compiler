@@ -2,6 +2,7 @@
 #define SYSY_COMPILER_FRONTEND_TYPE_H
 
 #include <optional>
+#include <variant>
 #include <llvm/IR/Value.h>
 
 enum class Typename {
@@ -14,9 +15,11 @@ enum class Typename {
 };
 
 namespace TypeSystem {
-    Typename fromType(llvm::Type *type);
+    Typename from(llvm::Type *type);
 
-    Typename fromValue(llvm::Value *value);
+    Typename from(llvm::Value *value);
+
+    Typename from(const std::variant<int, float> &value);
 
     llvm::Value *cast(llvm::Value *value, Typename wantType);
 
