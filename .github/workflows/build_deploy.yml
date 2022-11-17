@@ -95,4 +95,6 @@ jobs:
           git commit -m "update SysY-compiler"
           git branch -D master
           git branch -m master
+          git reflog expire --expire=now --all
+          git gc --prune=now --aggressive
           git push -f origin master
