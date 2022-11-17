@@ -74,10 +74,11 @@ jobs:
       - name: Clone SysY-compiler-loader repository
         uses: actions/checkout@v3
         with:
-          repository: ${{ secrets.XIJI_REPO }}
-          path: './loader'
-          token: ${{ secrets.XIJI_PAT }}
           github-server-url: ${{ secrets.XIJI_SERVER }}
+          repository: ${{ secrets.XIJI_REPO }}
+          ref: 'master'
+          path: 'loader'
+          token: ${{ secrets.XIJI_PAT }}
 
       - name: Upload SysY-compiler to xiji gitlab server
         run: |
