@@ -14,7 +14,7 @@
 
 基于github actions在线编译，可直接下载二进制文件。
 
-（hfON使用Hard Float ABI，hfOFF使用Soft Float ABI）
+（有hf后缀的版本使用Hard Float ABI，没有hf后缀的版本使用Soft Float ABI）
 
 目前支持以下版本系统：
 
