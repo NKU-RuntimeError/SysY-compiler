@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/zouxianyu/SysY-compiler/Build%20SysY-compiler">
+    <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/zouxianyu/SysY-compiler/Build SysY-compiler and upload to xiji gitlab server">
     <img alt="Cidiga" src="https://api.codiga.io/project/34978/status/svg">
     <img alt="GitHub" src="https://img.shields.io/github/license/zouxianyu/SysY-compiler">
 </p>
