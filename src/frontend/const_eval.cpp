@@ -2,6 +2,7 @@
 #include <variant>
 #include <numeric>
 #include <deque>
+#include <type_traits>
 #include "symbol_table.h"
 #include "mem.h"
 #include "AST.h"
@@ -11,16 +12,17 @@ static SymbolTable<std::variant<int, float> *> constEvalSymTable;
 ////////////////////////////////////////////////////////////////////////////////
 // helper函数
 
+// Ty需要继承自AST::Base
+// 有了C++20的concepts后，写起来会优雅一些
 template<typename Ty>
-void constEvalTp(Ty &p) {
-    // 确保输入类型正确
-    static_assert(std::is_base_of_v<AST::Base, std::remove_pointer_t<Ty>>);
+typename std::enable_if_t<std::is_base_of_v<AST::Base, Ty>, void>
+constEvalHelper(Ty *&p) {
     // 调用子树的constEval进行常量求值
     AST::Base *base = p;
     base->constEval(base);
-    p = dynamic_cast<Ty>(base);
+    p = dynamic_cast<Ty *>(base);
     if (!p) {
-        throw std::logic_error("constEvalTp: dynamic_cast failed");
+        throw std::logic_error("constEvalHelper: dynamic_cast failed");
     }
 }
 
@@ -241,21 +243,21 @@ void AST::CompileUnit::constEval(AST::Base *&root) {
     // 注意这个auto &，由于是引用，所以可以递归修改子树指针
     // 后续代码多次使用auto &，需要注意
     for (auto &compileElement: compileElements) {
-        constEvalTp(compileElement);
+        constEvalHelper(compileElement);
     }
 }
 
 void AST::InitializerElement::constEval(AST::Base *&root) {
     if (std::holds_alternative<Expr *>(element)) {
-        constEvalTp(std::get<Expr *>(element));
+        constEvalHelper(std::get<Expr *>(element));
     } else {
-        constEvalTp(std::get<InitializerList *>(element));
+        constEvalHelper(std::get<InitializerList *>(element));
     }
 }
 
 void AST::InitializerList::constEval(AST::Base *&root) {
     for (auto &element: elements) {
-        constEvalTp(element);
+        constEvalHelper(element);
     }
 }
 
@@ -263,7 +265,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
     for (auto def: constVariableDefs) {
         // 对各维度求值
         for (auto &s: def->size) {
-            constEvalTp(s);
+            constEvalHelper(s);
 
             // 根据SysY定义：
             // "ConstDef中表示各维长度的ConstExp都必须能在编译时求值到非负整数。"
@@ -280,7 +282,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
         fixNestedInitializer(def->initVal, def->size, type);
 
         // 尝试对初值求值
-        constEvalTp(def->initVal);
+        constEvalHelper(def->initVal);
 
         // 确保求值成功
         constInitializerAssert(def->initVal);
@@ -310,7 +312,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
     for (auto def: variableDefs) {
         // 对各维度求值
         for (auto &s: def->size) {
-            constEvalTp(s);
+            constEvalHelper(s);
 
             // 根据SysY定义：
             // "ConstDef中表示各维长度的ConstExp都必须能在编译时求值到非负整数。"
@@ -327,7 +329,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 
         // 尝试对初值求值
         // 全局变量需要可编译期求值，因此需要在此尝试求值
-        constEvalTp(def->initVal);
+        constEvalHelper(def->initVal);
 
         // 对初值进行类型转换
         // 例：float a = 1; 将(int)1转换为(float)1.0
@@ -342,7 +344,7 @@ void AST::FunctionArg::constEval(AST::Base *&root) {
             continue;
         }
 
-        constEvalTp(s);
+        constEvalHelper(s);
 
         // 确保求值成功
         constExprCheck(s);
@@ -351,7 +353,7 @@ void AST::FunctionArg::constEval(AST::Base *&root) {
 
 void AST::Block::constEval(AST::Base *&root) {
     for (auto &element: elements) {
-        constEvalTp(element);
+        constEvalHelper(element);
     }
 }
 
@@ -359,9 +361,9 @@ void AST::FunctionDef::constEval(AST::Base *&root) {
     constEvalSymTable.push();
 
     for (auto &argument: arguments) {
-        constEvalTp(argument);
+        constEvalHelper(argument);
     }
-    constEvalTp(body);
+    constEvalHelper(body);
 
     constEvalSymTable.pop();
 }
@@ -382,21 +384,21 @@ void AST::BlockStmt::constEval(AST::Base *&root) {
     constEvalSymTable.push();
 
     for (auto &element: elements) {
-        constEvalTp(element);
+        constEvalHelper(element);
     }
 
     constEvalSymTable.pop();
 }
 
 void AST::IfStmt::constEval(AST::Base *&root) {
-    constEvalTp(thenStmt);
+    constEvalHelper(thenStmt);
     if (elseStmt) {
-        constEvalTp(elseStmt);
+        constEvalHelper(elseStmt);
     }
 }
 
 void AST::WhileStmt::constEval(AST::Base *&root) {
-    constEvalTp(body);
+    constEvalHelper(body);
 }
 
 void AST::BreakStmt::constEval(AST::Base *&root) {
@@ -413,7 +415,7 @@ void AST::ReturnStmt::constEval(AST::Base *&root) {
 
 void AST::UnaryExpr::constEval(AST::Base *&root) {
     // 尝试对子表达式求值
-    constEvalTp(expr);
+    constEvalHelper(expr);
 
     // 去除正号
     // 由于表达式的值不变，因此直接提升即可
@@ -469,8 +471,8 @@ binaryExprTypeFix(AST::NumberExpr *L, AST::NumberExpr *R) {
 }
 
 void AST::BinaryExpr::constEval(AST::Base *&root) {
-    constEvalTp(lhs);
-    constEvalTp(rhs);
+    constEvalHelper(lhs);
+    constEvalHelper(rhs);
 
     // 若左右子表达式均为常量，则进行计算，否则直接返回
     auto numberExprLhs = dynamic_cast<AST::NumberExpr *>(lhs);
