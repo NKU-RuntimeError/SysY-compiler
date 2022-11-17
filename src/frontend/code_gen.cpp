@@ -13,7 +13,7 @@
 
 static std::tuple<llvm::Value *, Typename>
 unaryExprTypeFix(llvm::Value *value, Typename minType, Typename maxType) {
-    Typename type = TypeSystem::fromValue(value);
+    Typename type = TypeSystem::from(value);
 
     // 获得该节点的计算类型
     Typename calcType = static_cast<Typename>(std::clamp(
@@ -39,8 +39,8 @@ unaryExprTypeFix(llvm::Value *value, Typename wantType) {
 static std::tuple<llvm::Value *, llvm::Value *, Typename>
 binaryExprTypeFix(llvm::Value *L, llvm::Value *R, Typename minType, Typename maxType) {
     // 获得左右子树类型
-    Typename LType = TypeSystem::fromValue(L);
-    Typename RType = TypeSystem::fromValue(R);
+    Typename LType = TypeSystem::from(L);
+    Typename RType = TypeSystem::from(R);
 
     // 获得该节点的计算类型
     Typename calcType;
@@ -151,7 +151,7 @@ static void dynamicInitValCodeGen(
                 getGEPIndices(indices)
         );
         // 普通数组初值隐式类型转换
-        Typename wantType = TypeSystem::fromType(var->getType()->getPointerElementType());
+        Typename wantType = TypeSystem::from(var->getType()->getPointerElementType());
         val = unaryExprTypeFix(val, wantType);
         IR::ctx.builder.CreateStore(val, var);
         return;
@@ -431,8 +431,8 @@ llvm::Value *AST::AssignStmt::codeGen() {
 
     // 获取变量类型
     // 注意：左值是变量的指针，需要获取其指向的类型
-    Typename lType = TypeSystem::fromType(lhs->getType()->getPointerElementType());
-    Typename rType = TypeSystem::fromValue(rhs);
+    Typename lType = TypeSystem::from(lhs->getType()->getPointerElementType());
+    Typename rType = TypeSystem::from(rhs);
 
     // 尝试进行隐式类型转换，失败则抛出异常
     if (lType != rType) {
@@ -564,7 +564,7 @@ llvm::Value *AST::WhileStmt::codeGen() {
     llvm::Value *value = condition->codeGen();
 
     // 隐式类型转换
-    Typename type = TypeSystem::fromValue(value);
+    Typename type = TypeSystem::from(value);
     if (type != Typename::BOOL) {
         value = TypeSystem::cast(value, Typename::BOOL);
     }
@@ -632,7 +632,7 @@ llvm::Value *AST::ReturnStmt::codeGen() {
 
     if (expr) {
         // 返回值隐式类型转换
-        Typename wantType = TypeSystem::fromType(IR::ctx.function->getReturnType());
+        Typename wantType = TypeSystem::from(IR::ctx.function->getReturnType());
         llvm::Value *value = unaryExprTypeFix(expr->codeGen(), wantType);
         IR::ctx.builder.CreateRet(value);
     } else {
@@ -698,8 +698,8 @@ llvm::Value *AST::FunctionCallExpr::codeGen() {
     for (const auto &argument : function->args()) {
         // 指针传参（用于数组）不进行隐式类型转换，普通变量才会进行隐式类型转换
         if (!argument.getType()->isPointerTy()) {
-            Typename wantType = TypeSystem::fromType(argument.getType());
-            Typename gotType = TypeSystem::fromValue(values[i]);
+            Typename wantType = TypeSystem::from(argument.getType());
+            Typename gotType = TypeSystem::from(values[i]);
             if (wantType != gotType) {
                 values[i] = TypeSystem::cast(values[i], wantType);
             }

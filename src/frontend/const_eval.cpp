@@ -26,19 +26,11 @@ constEvalHelper(Ty *&p) {
     }
 }
 
-static Typename getType(const std::variant<int, float> &v) {
-    if (std::holds_alternative<int>(v)) {
-        return Typename::INT;
-    } else {
-        return Typename::FLOAT;
-    }
-}
-
 // 对编译期常量进行类型转换
 static std::variant<int, float>
 typeFix(std::variant<int, float> v, Typename wantType) {
     // 获得存储类型
-    Typename holdType = getType(v);
+    Typename holdType = TypeSystem::from(v);
 
     if (holdType == Typename::INT && wantType == Typename::FLOAT) {
         return static_cast<float>(std::get<int>(v));
@@ -75,7 +67,7 @@ static void initializerTypeFix(AST::InitializerElement *node, Typename wantType)
         }
 
         // 若类型不匹配，进行类型转换
-        if (getType(numberExpr->value) != wantType) {
+        if (TypeSystem::from(numberExpr->value) != wantType) {
             numberExpr->value = typeFix(numberExpr->value, wantType);
         }
     } else {
@@ -452,17 +444,17 @@ binaryExprTypeFix(AST::NumberExpr *L, AST::NumberExpr *R) {
     // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
     // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
     Typename nodeType = static_cast<Typename>(std::max(
-            static_cast<int>(getType(L->value)),
-            static_cast<int>(getType(R->value))
+            static_cast<int>(TypeSystem::from(L->value)),
+            static_cast<int>(TypeSystem::from(R->value))
     ));
 
     // 按需进行类型转换
     auto Lv = L->value;
     auto Rv = R->value;
-    if (getType(Lv) != nodeType) {
+    if (TypeSystem::from(Lv) != nodeType) {
         Lv = typeFix(Lv, nodeType);
     }
-    if (getType(Rv) != nodeType) {
+    if (TypeSystem::from(Rv) != nodeType) {
         Rv = typeFix(Rv, nodeType);
     }
 
