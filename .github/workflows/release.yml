@@ -14,7 +14,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: build_deploy.yml
-          branch: ${{ github.ref }}
+          branch: ${{ github.ref_name }}
 
       - name: Change permissions
         run: >
