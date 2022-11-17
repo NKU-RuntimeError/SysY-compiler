@@ -68,9 +68,6 @@ jobs:
         with:
           name: SysY-compiler-ubuntu-20.04-hfON
 
-      - name: Unzip it
-        run: unzip SysY-compiler-ubuntu-20.04-hfON.zip
-
       - name: Zip it to tar.gz format
         run: tar -zcvf sysy_compiler.tar.gz sysy_compiler
 
