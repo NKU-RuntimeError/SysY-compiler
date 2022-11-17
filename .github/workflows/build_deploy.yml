@@ -68,6 +68,9 @@ jobs:
         with:
           name: SysY-compiler-ubuntu-20.04-hfON
 
+      - name: Change permission
+        run: chmod +x sysy_compiler
+
       - name: Zip it to tar.gz format
         run: tar -zcvf sysy_compiler.tar.gz sysy_compiler
 
