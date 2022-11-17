@@ -1,0 +1,42 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build_deploy.yml
+          branch: ${{ github.ref }}
+
+      - name: Change permissions
+        run: >
+          chmod +x
+          SysY-compiler-ubuntu-20.04-hfON/sysy_compiler
+          SysY-compiler-ubuntu-20.04-hfOFF/sysy_compiler
+          SysY-compiler-ubuntu-22.04-hfON/sysy_compiler
+          SysY-compiler-ubuntu-22.04-hfOFF/sysy_compiler
+
+      - name: Create tar.gz file
+        run: |
+          tar -zcvf SysY-compiler-ubuntu-20.04-hf.tar.gz -C SysY-compiler-ubuntu-20.04-hfON sysy_compiler
+          tar -zcvf SysY-compiler-ubuntu-20.04.tar.gz -C SysY-compiler-ubuntu-20.04-hfOFF sysy_compiler
+          tar -zcvf SysY-compiler-ubuntu-22.04-hf.tar.gz -C SysY-compiler-ubuntu-22.04-hfON sysy_compiler
+          tar -zcvf SysY-compiler-ubuntu-22.04.tar.gz -C SysY-compiler-ubuntu-22.04-hfOFF sysy_compiler
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            SysY-compiler-ubuntu-20.04-hf.tar.gz
+            SysY-compiler-ubuntu-20.04.tar.gz
+            SysY-compiler-ubuntu-22.04-hf.tar.gz
+            SysY-compiler-ubuntu-22.04.tar.gz

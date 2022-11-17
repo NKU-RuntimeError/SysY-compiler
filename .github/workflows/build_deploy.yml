@@ -1,4 +1,4 @@
-name: Build SysY-compiler
+name: Build SysY-compiler and upload to xiji gitlab server
 
 on:
   push:
@@ -55,3 +55,44 @@ jobs:
         with:
           name: SysY-compiler-${{matrix.os}}-hf${{matrix.hf_option}}
           path: ${{github.workspace}}/build/sysy_compiler
+
+
+  upload:
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+      - name: Download SysY-compiler artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: SysY-compiler-ubuntu-20.04-hfON
+
+      - name: Change permission
+        run: chmod +x sysy_compiler
+
+      - name: Zip it to tar.gz format
+        run: tar -zcvf sysy_compiler.tar.gz sysy_compiler
+
+      - name: Clone SysY-compiler-loader repository
+        uses: actions/checkout@v3
+        with:
+          github-server-url: ${{ secrets.XIJI_SERVER }}
+          repository: ${{ secrets.XIJI_REPO }}
+          ref: 'master'
+          path: 'loader'
+          token: ${{ secrets.XIJI_PAT }}
+
+      - name: Upload SysY-compiler to xiji gitlab server
+        run: |
+          cd loader
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git checkout --orphan tmp
+          rm sysy_compiler.tar.gz
+          mv ../sysy_compiler.tar.gz .
+          git add -A
+          git commit -m "update SysY-compiler"
+          git branch -D master
+          git branch -m master
+          git push -f origin master
