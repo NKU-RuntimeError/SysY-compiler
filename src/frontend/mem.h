@@ -6,15 +6,17 @@
 
 namespace Memory {
 
-    // 存储在mem.cpp中
-    // 假设该结构不会被并发访问，因此不使用同步机制
-    extern std::vector<std::function<void()>> destructors;
+    namespace Detail {
+        // 存储在mem.cpp中
+        // 假设该结构不会被并发访问，因此不使用同步机制
+        extern std::vector<std::function<void()>> destructors;
+    }
 
     // 在创建AST节点时，使用该函数，通过完美转发，将参数传递给构造函数
     template<typename Ty, typename... Args>
     Ty *make(Args &&... args) {
         Ty *ptr = new Ty(std::forward<Args>(args)...);
-        destructors.emplace_back([ptr] { delete ptr; });
+        Detail::destructors.emplace_back([ptr] { delete ptr; });
         return ptr;
     }
 

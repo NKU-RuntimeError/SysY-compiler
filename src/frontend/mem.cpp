@@ -2,7 +2,12 @@
 #include <functional>
 
 namespace Memory {
-    std::vector<std::function<void()>> destructors;
+
+    namespace Detail {
+        std::vector<std::function<void()>> destructors;
+    }
+
+    using namespace Detail;
 
     void freeAll() {
         for (const auto &destructor: destructors) {
