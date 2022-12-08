@@ -14,6 +14,7 @@ namespace ConstEvalHelper {
     typename std::enable_if_t<std::is_base_of_v<AST::Base, Ty>, void>
     constEvalHelper(Ty *&p) {
         // 调用子树的constEval进行常量求值
+        // 必须以Base为中转进行类型转换，不然会报错
         AST::Base *base = p;
         base->constEval(base);
         p = dynamic_cast<Ty *>(base);
