@@ -69,7 +69,7 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
         // 注意：不考虑数组常量，数组维度是empty即代表是普通常量
         if (def->size.empty()) {
             // 由于上面已经确保了求值成功，因此在这里numberExpr一定不是空指针
-            NumberExpr* numberExpr = dynamic_cast<AST::NumberExpr *>(
+            auto numberExpr = dynamic_cast<AST::NumberExpr *>(
                     std::get<AST::Expr *>(def->initVal->element)
             );
 
@@ -201,7 +201,7 @@ void AST::UnaryExpr::constEval(AST::Base *&root) {
 
     // 计算负号
     if (op == Operator::SUB) {
-        NumberExpr* numberExpr = dynamic_cast<AST::NumberExpr *>(expr);
+        auto numberExpr = dynamic_cast<AST::NumberExpr *>(expr);
         if (!numberExpr) {
             return;
         }
@@ -251,8 +251,8 @@ void AST::BinaryExpr::constEval(AST::Base *&root) {
     constEvalHelper(rhs);
 
     // 若左右子表达式均为常量，则进行计算，否则直接返回
-    NumberExpr* numberExprLhs = dynamic_cast<AST::NumberExpr *>(lhs);
-    NumberExpr* numberExprRhs = dynamic_cast<AST::NumberExpr *>(rhs);
+    auto numberExprLhs = dynamic_cast<AST::NumberExpr *>(lhs);
+    auto numberExprRhs = dynamic_cast<AST::NumberExpr *>(rhs);
     if (!numberExprLhs || !numberExprRhs) {
         return;
     }
@@ -325,7 +325,7 @@ void AST::NumberExpr::constEval(AST::Base *&root) {
 }
 
 void AST::VariableExpr::constEval(AST::Base *&root) {
-    // 从符号表中查找编译器常量
+    // 从符号表中查找编译期常量
     std::variant<int, float> *pValue = constEvalSymTable.tryLookup(name);
     if (!pValue) {
         return;
