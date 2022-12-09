@@ -14,14 +14,14 @@ using namespace ConstEvalHelper;
 static SymbolTable<std::variant<int, float> *> constEvalSymTable;
 
 void AST::CompileUnit::constEval(AST::Base *&root) {
-    // 注意这个auto &，由于是引用，所以可以递归修改子树指针
-    // 后续代码多次使用auto &，需要注意
-    for (auto &compileElement: compileElements) {
+    // 注意这个&，由于是引用，所以可以递归修改子树指针
+    for (Base* &compileElement: compileElements) {
         constEvalHelper(compileElement);
     }
 }
 
 void AST::InitializerElement::constEval(AST::Base *&root) {
+    // 可能是Expr类或InitializerList类，先做个判断
     if (std::holds_alternative<Expr *>(element)) {
         constEvalHelper(std::get<Expr *>(element));
     } else {
@@ -30,15 +30,15 @@ void AST::InitializerElement::constEval(AST::Base *&root) {
 }
 
 void AST::InitializerList::constEval(AST::Base *&root) {
-    for (auto &element: elements) {
+    for (InitializerElement* &element: elements) {
         constEvalHelper(element);
     }
 }
 
 void AST::ConstVariableDecl::constEval(AST::Base *&root) {
-    for (auto def: constVariableDefs) {
+    for (ConstVariableDef* def: constVariableDefs) {
         // 对各维度求值
-        for (auto &s: def->size) {
+        for (Expr* &s: def->size) {
             constEvalHelper(s);
 
             // 根据SysY定义：
@@ -83,9 +83,9 @@ void AST::ConstVariableDecl::constEval(AST::Base *&root) {
 }
 
 void AST::VariableDecl::constEval(AST::Base *&root) {
-    for (auto def: variableDefs) {
+    for (VariableDef* def: variableDefs) {
         // 对各维度求值
-        for (auto &s: def->size) {
+        for (Expr* &s: def->size) {
             constEvalHelper(s);
 
             // 根据SysY定义：
@@ -112,7 +112,7 @@ void AST::VariableDecl::constEval(AST::Base *&root) {
 }
 
 void AST::FunctionArg::constEval(AST::Base *&root) {
-    for (auto &s: size) {
+    for (Expr* &s: size) {
         // 跳过第一维度的参数，例：int a[][3]，第一维为nullptr
         if (!s) {
             continue;
@@ -126,15 +126,16 @@ void AST::FunctionArg::constEval(AST::Base *&root) {
 }
 
 void AST::Block::constEval(AST::Base *&root) {
-    for (auto &element: elements) {
+    for (Base* &element: elements) {
         constEvalHelper(element);
     }
 }
 
 void AST::FunctionDef::constEval(AST::Base *&root) {
+    // 创建该函数专属的局部符号表
     constEvalSymTable.push();
 
-    for (auto &argument: arguments) {
+    for (FunctionArg* &argument: arguments) {
         constEvalHelper(argument);
     }
     constEvalHelper(body);
@@ -157,7 +158,7 @@ void AST::NullStmt::constEval(AST::Base *&root) {
 void AST::BlockStmt::constEval(AST::Base *&root) {
     constEvalSymTable.push();
 
-    for (auto &element: elements) {
+    for (Base* &element: elements) {
         constEvalHelper(element);
     }
 
@@ -224,6 +225,7 @@ binaryExprTypeFix(AST::NumberExpr *L, AST::NumberExpr *R) {
 
     // 获得该节点的计算类型
     // 取max是因为在Typename中编号按照类型优先级排列，越大优先级越高
+    // Float > Int > Bool > Void
     // 对于每个二元运算，我们希望类型向高处转换，保证计算精度
     Typename nodeType = static_cast<Typename>(std::max(
             static_cast<int>(TypeSystem::from(L->value)),

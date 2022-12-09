@@ -40,7 +40,7 @@ ConstEvalHelper::constInitializerAssert(
     } else {
         // 递归进行常量求值Assert
         auto initializerList = std::get<AST::InitializerList *>(node->element);
-        for (auto element: initializerList->elements) {
+        for (AST::InitializerElement* element: initializerList->elements) {
             constInitializerAssert(element);
         }
     }
@@ -65,7 +65,7 @@ ConstEvalHelper::initializerTypeFix(
     } else {
         // 递归进行类型转换
         auto initializerList = std::get<AST::InitializerList *>(node->element);
-        for (auto element: initializerList->elements) {
+        for (AST::InitializerElement* element: initializerList->elements) {
             initializerTypeFix(element, wantType);
         }
     }
@@ -85,6 +85,7 @@ ConstEvalHelper::constExprCheck(
     }
 }
 
+// 展开成一维并补零
 void
 ConstEvalHelper::initializerFlatten(
         AST::InitializerElement *initializerElement,
@@ -119,7 +120,7 @@ ConstEvalHelper::initializerFlatten(
 
     // 弹出第一个维度，递归向下做flatten
     size.pop_front();
-    for (auto flattenElement: initializerList->elements) {
+    for (AST::InitializerElement* flattenElement: initializerList->elements) {
         initializerFlatten(flattenElement, size, type);
 
         // 区分 单个元素/flatten列表 两种情况，加到当前层的临时列表中
@@ -157,6 +158,7 @@ ConstEvalHelper::initializerFlatten(
     initializerList->elements = elements;
 }
 
+// 将展平的一维重新拆分为多维
 void
 ConstEvalHelper::initializerSplit(
         AST::InitializerElement *initializerElement,
@@ -209,6 +211,7 @@ ConstEvalHelper::initializerSplit(
     initializerList->elements = elements;
 }
 
+// 调用展开和拆分
 void
 ConstEvalHelper::fixNestedInitializer(
         AST::InitializerElement *initializerElement,
@@ -217,7 +220,7 @@ ConstEvalHelper::fixNestedInitializer(
 ) {
     std::deque<int> sizeDeque;
     // 在维度进行完常量求值后，再进行数组修复，因此可以确保一定是>=0的字面值常量
-    for (auto element: size) {
+    for (AST::Expr* element: size) {
         auto numberExpr = dynamic_cast<AST::NumberExpr *>(element);
         sizeDeque.emplace_back(std::get<int>(numberExpr->value));
     }

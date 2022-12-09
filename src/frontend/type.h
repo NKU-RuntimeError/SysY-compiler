@@ -6,9 +6,8 @@
 #include <llvm/IR/Value.h>
 
 enum class Typename {
-    VOID,
-
     // 按照优先顺序排列，序号越高，优先级越大，便于进行类型转换
+    VOID,
     BOOL,
     INT,
     FLOAT,
