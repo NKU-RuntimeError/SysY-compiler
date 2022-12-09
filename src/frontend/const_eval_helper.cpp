@@ -211,6 +211,7 @@ ConstEvalHelper::initializerSplit(
     initializerList->elements = elements;
 }
 
+// 调用展开和拆分
 void
 ConstEvalHelper::fixNestedInitializer(
         AST::InitializerElement *initializerElement,
