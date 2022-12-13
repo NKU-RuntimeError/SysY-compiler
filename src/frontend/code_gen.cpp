@@ -15,7 +15,7 @@ llvm::Value *AST::CompileUnit::codeGen() {
     // 在编译的初始阶段添加SysY系统函数原型
     addLibraryPrototype();
 
-    for (auto compileElement: compileElements) {
+    for (Base* compileElement: compileElements) {
         compileElement->codeGen();
     }
     return nullptr;
@@ -23,11 +23,11 @@ llvm::Value *AST::CompileUnit::codeGen() {
 
 llvm::Value *AST::ConstVariableDecl::codeGen() {
     // 常量均存储在全局空间
-    for (auto def: constVariableDefs) {
+    for (ConstVariableDef* def: constVariableDefs) {
         // 确定常量名称，若为局部常量，则补充函数前缀
         std::string varName;
         if (IR::ctx.function) {
-            auto func = IR::ctx.builder.GetInsertBlock()->getParent();
+            llvm::Function* func = IR::ctx.builder.GetInsertBlock()->getParent();
             varName = func->getName().str() + "." + def->name;
         } else {
             varName = def->name;
@@ -60,7 +60,7 @@ llvm::Value *AST::VariableDecl::codeGen() {
     // 生成局部变量/全局变量
     if (IR::ctx.function) {
         // 局部变量
-        for (auto def: variableDefs) {
+        for (VariableDef *def: variableDefs) {
             // 在函数头部使用alloca分配空间
             llvm::IRBuilder<> entryBuilder(
                     &IR::ctx.function->getEntryBlock(),
@@ -84,7 +84,7 @@ llvm::Value *AST::VariableDecl::codeGen() {
         }
     } else {
         // 全局变量
-        for (auto def: variableDefs) {
+        for (VariableDef *def: variableDefs) {
             // 生成全局变量
             auto var = new llvm::GlobalVariable(
                     IR::ctx.module,
@@ -118,7 +118,7 @@ llvm::Value *AST::VariableDecl::codeGen() {
 }
 
 llvm::Value *AST::Block::codeGen() {
-    for (auto element: elements) {
+    for (Base *element: elements) {
         element->codeGen();
     }
     return nullptr;
@@ -127,7 +127,7 @@ llvm::Value *AST::Block::codeGen() {
 llvm::Value *AST::FunctionDef::codeGen() {
     // 计算参数类型
     std::vector<llvm::Type *> argTypes;
-    for (auto argument: arguments) {
+    for (FunctionArg *argument: arguments) {
         // 该函数对普通类型和数组均适用，因此不对类型进行区分
         argTypes.emplace_back(TypeSystem::get(
                 argument->type,
@@ -251,7 +251,7 @@ llvm::Value *AST::ExprStmt::codeGen() {
 llvm::Value *AST::BlockStmt::codeGen() {
     // 块语句需要开启新一层作用域
     IR::ctx.symbolTable.push();
-    for (auto element: elements) {
+    for (Base *element: elements) {
         element->codeGen();
     }
     IR::ctx.symbolTable.pop();
@@ -379,7 +379,7 @@ llvm::Value *AST::WhileStmt::codeGen() {
         IR::ctx.builder.CreateBr(conditionBB);
     }
 
-    // continue基本块
+    // 出了循环后的后继基本块
     function->getBasicBlockList().push_back(continueBB);
     IR::ctx.builder.SetInsertPoint(continueBB);
 
@@ -395,6 +395,7 @@ llvm::Value *AST::BreakStmt::codeGen() {
         return nullptr;
     }
 
+    // 无条件跳出循环，并清除原循环中的插入点
     IR::ctx.builder.CreateBr(IR::ctx.loops.top().breakBB);
 
     IR::ctx.builder.ClearInsertionPoint();
@@ -410,6 +411,7 @@ llvm::Value *AST::ContinueStmt::codeGen() {
         return nullptr;
     }
 
+    // 跳转执行下一次循环，并清除原循环中的插入点
     IR::ctx.builder.CreateBr(IR::ctx.loops.top().continueBB);
 
     IR::ctx.builder.ClearInsertionPoint();
@@ -482,7 +484,7 @@ llvm::Value *AST::FunctionCallExpr::codeGen() {
 
     // 计算实参值
     std::vector<llvm::Value *> values;
-    for (auto param: params) {
+    for (Expr *param: params) {
         values.emplace_back(param->codeGen());
     }
 
@@ -621,7 +623,8 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             );
 
             // 生成合并块的phi节点，将左右两侧的值传入
-            phi->addIncoming(L, incoming1);
+            // incoming1分支传入的值一定为false
+            phi->addIncoming(llvm::ConstantInt::getFalse(IR::ctx.llvmCtx), incoming1);
             phi->addIncoming(R, incoming2);
 
             return phi;
@@ -676,7 +679,8 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             );
 
             // 生成合并块的phi节点，将左右两侧的值传入
-            phi->addIncoming(L, incoming1);
+            // incoming1分支传入的值一定为true
+            phi->addIncoming(llvm::ConstantInt::getTrue(IR::ctx.llvmCtx), incoming1);
             phi->addIncoming(R, incoming2);
 
             return phi;
