@@ -18,6 +18,8 @@ struct Pattern {
     const std::string regex;
     const std::function<std::optional<int>(std::string)> callback;
 
+    static std::string fixGroup(const std::string &pattern);
+
     Pattern(
             const std::string &pattern,
             std::function<std::optional<int>(std::string)> callback
@@ -25,7 +27,7 @@ struct Pattern {
 };
 
 // 查找前面不是斜杠的括号，替换成非捕获组
-static std::string fixGroup(const std::string &pattern) {
+std::string Pattern::fixGroup(const std::string &pattern) {
     std::string dummyPattern = "Z" + pattern;
     std::string fixedPattern;
     fixedPattern.reserve(pattern.length());
