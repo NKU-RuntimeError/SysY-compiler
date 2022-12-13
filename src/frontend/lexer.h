@@ -17,6 +17,8 @@ public:
     explicit Lexer(std::string input) : input(std::move(input)) {}
 
     std::optional<int> getToken();
+
+    static void log(const std::string &token, const std::string &lexeme = "", void *ptr = nullptr);
 };
 
 #endif //SYSY_COMPILER_FRONTEND_LEXER_H

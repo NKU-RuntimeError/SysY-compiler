@@ -109,6 +109,19 @@ std::optional<int> Lexer::getToken() {
     throw std::logic_error("unknown token exception not handled");
 }
 
+void Lexer::log(const std::string &token, const std::string &lexeme, void *ptr) {
+    auto &stream = ::log("lexer");
+    stream << std::setw(20) << token <<
+           std::setw(20) << lexeme <<
+           std::setw(10) << currRow <<
+           std::setw(10) << currCol;
+    if (ptr) {
+        stream << std::setw(20) << ptr;
+    }
+    stream << std::endl;
+}
+
+// 被yyparse调用
 int yylex() {
     static std::string s(std::istreambuf_iterator(std::cin), {});
     static Lexer lexer{s};
