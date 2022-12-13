@@ -106,7 +106,7 @@ std::optional<int> Lexer::getToken() {
     }
 
     // 无法匹配任何pattern
-    return std::nullopt;
+    throw std::logic_error("unknown token exception not handled");
 }
 
 int yylex() {
