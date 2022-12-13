@@ -10,10 +10,15 @@ class Lexer {
     std::string input;
     std::sregex_iterator it, end;
     std::regex regex;
+
+    static void changeRowCol(const std::string &str, size_t &row, size_t &col);
+
 public:
     explicit Lexer(std::string input) : input(std::move(input)) {}
 
     std::optional<int> getToken();
+
+    static void log(const std::string &token, const std::string &lexeme = "", void *ptr = nullptr);
 };
 
 #endif //SYSY_COMPILER_FRONTEND_LEXER_H
