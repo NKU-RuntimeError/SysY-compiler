@@ -54,6 +54,20 @@ size_t currCol = 1;
 // 然后调用其对应的callback，获得token的类型
 #include "lexer_pattern.inc"
 
+void Lexer::changeRowCol(const std::string &str, size_t &row, size_t &col) {
+    // 计算新行号
+    size_t newLineCount = std::count_if(str.begin(), str.end(),
+                                        [](char c) { return c == '\n'; });
+    row += newLineCount;
+
+    // 计算新列号
+    if (size_t lastNewLinePos = str.find_last_of('\n'); lastNewLinePos != std::string::npos) {
+        col = str.length() - lastNewLinePos;
+    } else {
+        col += str.length();
+    }
+}
+
 // https://stackoverflow.com/questions/34229328/writing-a-very-simple-lexical-analyser-in-c
 std::optional<int> Lexer::getToken() {
 
@@ -81,8 +95,10 @@ std::optional<int> Lexer::getToken() {
     for (int i = 0; i < it->size(); i++) {
         if ((*it)[i + 1].matched) {
             std::string str = (*it)[i + 1].str();
+            std::optional<int> token = patterns[i].callback(str);
+            changeRowCol(str, currRow, currCol);
             it++;
-            if (auto token = patterns[i].callback(str)) {
+            if (token) {
                 return token;
             }
             goto retry;
