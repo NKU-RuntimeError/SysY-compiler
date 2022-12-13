@@ -623,8 +623,8 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             );
 
             // 生成合并块的phi节点，将左右两侧的值传入
-            // TODO:左分支传入的值修改为False
-            phi->addIncoming(L, incoming1);
+            // incoming1分支传入的值一定为false
+            phi->addIncoming(llvm::ConstantInt::getFalse(IR::ctx.llvmCtx), incoming1);
             phi->addIncoming(R, incoming2);
 
             return phi;
@@ -679,8 +679,8 @@ llvm::Value *AST::BinaryExpr::codeGen() {
             );
 
             // 生成合并块的phi节点，将左右两侧的值传入
-            // TODO:左分支的值修改为True
-            phi->addIncoming(L, incoming1);
+            // incoming1分支传入的值一定为true
+            phi->addIncoming(llvm::ConstantInt::getTrue(IR::ctx.llvmCtx), incoming1);
             phi->addIncoming(R, incoming2);
 
             return phi;
