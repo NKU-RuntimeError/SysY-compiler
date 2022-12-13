@@ -76,7 +76,7 @@ std::optional<int> Lexer::getToken() {
     std::call_once(onceFlag, [this] {
         // 按序合并所有正则表达式
         std::string regexMerge;
-        for (const auto &pattern: patterns) {
+        for (const Pattern &pattern: patterns) {
             regexMerge += "(" + pattern.regex + ")|";
         }
         // 去除最后一个竖线
@@ -124,7 +124,7 @@ int yylex() {
                      std::endl;
     });
 
-    if (auto token = lexer.getToken()) {
+    if (std::optional<int> token = lexer.getToken()) {
         return *token;
     }
     return 0;
