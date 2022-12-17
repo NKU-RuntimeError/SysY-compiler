@@ -13,4 +13,4 @@ namespace llvm {
     };
 }
 
-#endif //SYSY_COMPILER_MEM2REG_PASS_H
+#endif
