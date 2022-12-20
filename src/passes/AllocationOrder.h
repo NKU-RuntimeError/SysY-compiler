@@ -1,18 +1,3 @@
-//===-- llvm/CodeGen/AllocationOrder.h - Allocation Order -*- C++ -*-------===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file implements an allocation order for virtual registers.
-//
-// The preferred allocation order for a virtual register depends on allocation
-// hints and target hooks. The AllocationOrder class encapsulates all of that.
-//
-//===----------------------------------------------------------------------===//
-
 #ifndef LLVM_LIB_CODEGEN_ALLOCATIONORDER_H
 #define LLVM_LIB_CODEGEN_ALLOCATIONORDER_H
 

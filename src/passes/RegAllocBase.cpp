@@ -1,16 +1,3 @@
-//===- RegAllocBase.cpp - Register Allocator Base Class -------------------===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file defines the RegAllocBase class which provides common functionality
-// for LiveIntervalUnion-based register allocators.
-//
-//===----------------------------------------------------------------------===//
-
 #include "RegAllocBase.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -65,65 +52,57 @@ void RegAllocBase::init(VirtRegMap &vrm, LiveIntervals &lis,
     RegClassInfo.runOnMachineFunction(vrm.getMachineFunction());
 }
 
-// Visit all the live registers. If they are already assigned to a physical
-// register, unify them with the corresponding LiveIntervalUnion, otherwise push
-// them on the priority queue for later assignment.
+// 遍历当前存活的所有虚拟寄存器，将这些未分配的物理寄存器放入优先队列中等待分配
 void RegAllocBase::seedLiveRegs() {
     NamedRegionTimer T("seed", "Seed Live Regs", TimerGroupName,
                        TimerGroupDescription, TimePassesIsEnabled);
     for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
         Register Reg = Register::index2VirtReg(i);
+        // 该虚拟寄存器除了定义的debug之外并没有实际使用，则无需分配
         if (MRI->reg_nodbg_empty(Reg))
             continue;
         enqueue(&LIS->getInterval(Reg));
     }
 }
 
-// Top-level driver to manage the queue of unassigned VirtRegs and call the
-// selectOrSplit implementation.
+// 负责管理未分配的虚拟寄存器的顶层驱动
 void RegAllocBase::allocatePhysRegs() {
+    // 把存活的未分配虚拟寄存器放入优先队列
     seedLiveRegs();
 
-    // Continue assigning vregs one at a time to available physical registers.
+    // 遍历所有的未分配虚拟寄存器
     while (LiveInterval *VirtReg = dequeue()) {
         assert(!VRM->hasPhys(VirtReg->reg()) && "Register already assigned");
 
-        // Unused registers can appear when the spiller coalesces snippets.
+        // 在代码段合并的过程中可能又出现未使用过的虚拟寄存器，则将它们移除
         if (MRI->reg_nodbg_empty(VirtReg->reg())) {
-            LLVM_DEBUG(dbgs() << "Dropping unused " << *VirtReg << '\n');
             aboutToRemoveInterval(*VirtReg);
             LIS->removeInterval(VirtReg->reg());
             continue;
         }
 
-        // Invalidate all interference queries, live ranges could have changed.
+        // 修改虚拟寄存器Live Range后需使干涉查询无效，避免查询到旧信息。直到新信息缓存完毕
         Matrix->invalidateVirtRegs();
 
-        // selectOrSplit requests the allocator to return an available physical
-        // register if possible and populate a list of new live intervals that
-        // result from splitting.
-        LLVM_DEBUG(dbgs() << "\nselectOrSplit "
-                          << TRI->getRegClassName(MRI->getRegClass(VirtReg->reg()))
-                          << ':' << *VirtReg << " w=" << VirtReg->weight() << '\n');
-
+        // 调用regalloc.cpp中的selectOrSplit函数查询可分配给当前虚拟寄存器的物理寄存器
         using VirtRegVec = SmallVector<Register, 4>;
 
         VirtRegVec SplitVRegs;
         MCRegister AvailablePhysReg = selectOrSplit(*VirtReg, SplitVRegs);
 
+        // 未找到可分配的物理寄存器，可能是由于内联了汇编代码导致的，此时会导致需要更多的寄存器来进行分配
         if (AvailablePhysReg == ~0u) {
-            // selectOrSplit failed to find a register!
-            // Probably caused by an inline asm.
             MachineInstr *MI = nullptr;
             for (MachineRegisterInfo::reg_instr_iterator
                          I = MRI->reg_instr_begin(VirtReg->reg()),
                          E = MRI->reg_instr_end();
-                 I != E;) {
+                         I != E;) {
                 MI = &*(I++);
                 if (MI->isInlineAsm())
                     break;
             }
 
+            // 输出报错信息，包括无可用寄存器、内联汇编、所有寄存器用完了等
             const TargetRegisterClass *RC = MRI->getRegClass(VirtReg->reg());
             ArrayRef<MCPhysReg> AllocOrder = RegClassInfo.getOrder(RC);
             if (AllocOrder.empty())
@@ -138,29 +117,30 @@ void RegAllocBase::allocatePhysRegs() {
                 report_fatal_error("ran out of registers during register allocation");
             }
 
-            // Keep going after reporting the error.
             VRM->assignVirt2Phys(VirtReg->reg(), AllocOrder.front());
             continue;
         }
 
+        // 如果有可分配的物理寄存器就直接分配
         if (AvailablePhysReg)
             Matrix->assign(*VirtReg, AvailablePhysReg);
 
+        // 对于溢出的寄存器，将它们按LiveInterval分割成小块，重新放入队列中
         for (Register Reg : SplitVRegs) {
             assert(LIS->hasInterval(Reg));
 
             LiveInterval *SplitVirtReg = &LIS->getInterval(Reg);
             assert(!VRM->hasPhys(SplitVirtReg->reg()) && "Register already assigned");
+            // 新分割出的寄存器中，和上文一样，未使用过的寄存器不用分配，直接移除
             if (MRI->reg_nodbg_empty(SplitVirtReg->reg())) {
                 assert(SplitVirtReg->empty() && "Non-empty but used interval");
-                LLVM_DEBUG(dbgs() << "not queueing unused  " << *SplitVirtReg << '\n');
                 aboutToRemoveInterval(*SplitVirtReg);
                 LIS->removeInterval(SplitVirtReg->reg());
                 continue;
             }
-            LLVM_DEBUG(dbgs() << "queuing new interval: " << *SplitVirtReg << "\n");
             assert(Register::isVirtualRegister(SplitVirtReg->reg()) &&
                    "expect split value in virtual register");
+            // 其余的新分割出的寄存器入队，等待下一次分配
             enqueue(SplitVirtReg);
             ++NumNewQueued;
         }

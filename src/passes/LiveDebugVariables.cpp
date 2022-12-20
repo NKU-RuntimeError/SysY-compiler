@@ -1,23 +1,3 @@
-//===- LiveDebugVariables.cpp - Tracking debug info variables -------------===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// This file implements the LiveDebugVariables analysis.
-//
-// Remove all DBG_VALUE instructions referencing virtual registers and replace
-// them with a data structure tracking where live user variables are kept - in a
-// virtual register or in a stack slot.
-//
-// Allow the data structure to be updated during register allocation when values
-// are moved between registers and stack slots. Finally emit new DBG_VALUE
-// instructions after register allocation is complete.
-//
-//===----------------------------------------------------------------------===//
-
 #include "LiveDebugVariables.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
