@@ -8,6 +8,7 @@
 #include "IR.h"
 #include "hello_world_pass.h"
 #include "pass_manager.h"
+#include <llvm/CodeGen/RegAllocRegistry.h>
 
 // 使用llvm的新pass manager
 // https://llvm.org/docs/NewPassManager.html
@@ -78,6 +79,7 @@ void PassManager::run(int optLevel, const std::string &filename) {
     }
 
     log("PM") << "generate assembly" << std::endl;
+    llvm::RegisterRegAlloc::setDefault(llvm::createBasicRegisterAllocator);
     llvm::legacy::PassManager codeGenPass;
     auto fileType = llvm::CGFT_AssemblyFile;
     if (targetMachine->addPassesToEmitFile(codeGenPass, file, nullptr, fileType)) {
