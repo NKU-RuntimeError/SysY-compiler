@@ -7,6 +7,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include "IR.h"
 #include "hello_world_pass.h"
+#include "mem2reg_pass.h"
 #include "pass_manager.h"
 #include <llvm/CodeGen/RegAllocRegistry.h>
 
@@ -57,15 +58,16 @@ void PassManager::run(int optLevel, const std::string &filename) {
         PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, llvm::OptimizationLevel level) {
                     MPM.addPass(llvm::createModuleToFunctionPassAdaptor(HelloWorldPass()));
+                    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(llvm::PromotePass()));
                 }
         );
 
-        llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
-                llvm::OptimizationLevel::O3
-        );
+//        llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+//                llvm::OptimizationLevel::O3
+//        );
 
         log("PM") << "optimizing module" << std::endl;
-        MPM.run(IR::ctx.module, MAM);
+        //MPM.run(IR::ctx.module, MAM);
 
         // 展示优化后的IR
         IR::show();
