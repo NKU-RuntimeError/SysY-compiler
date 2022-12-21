@@ -1,33 +1,39 @@
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/DenseMap.h>
-#include <llvm/ADT/STLExtras.h>
-#include <llvm/ADT/SmallPtrSet.h>
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/ADT/Statistic.h>
-#include <llvm/ADT/Twine.h>
-#include <llvm/Analysis/AssumptionCache.h>
-#include <llvm/Analysis/InstructionSimplify.h>
-#include <llvm/Analysis/IteratedDominanceFrontier.h>
-#include <llvm/Analysis/ValueTracking.h>
-#include <llvm/IR/BasicBlock.h>
-#include <llvm/IR/CFG.h>
-#include <llvm/IR/Constant.h>
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/DIBuilder.h>
-#include <llvm/IR/Dominators.h>
-#include <llvm/IR/Function.h>
-#include <llvm/IR/InstrTypes.h>
-#include <llvm/IR/Instruction.h>
-#include <llvm/IR/Instructions.h>
-#include <llvm/IR/IntrinsicInst.h>
-#include <llvm/IR/Intrinsics.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/Type.h>
-#include <llvm/IR/User.h>
-#include <llvm/Support/Casting.h>
-#include <mem2reg_pass_helper.h>
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/TinyPtrVector.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/IteratedDominanceFrontier.h"
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/User.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/PromoteMemToReg.h"
+#include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -358,25 +364,25 @@ static bool promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
                 StoresByIndex,
                 std::make_pair(LoadIdx, static_cast<StoreInst *>(nullptr)),
                 less_first());
-        Value *ReplVal;
         if (I == StoresByIndex.begin()) {
             if (!StoresByIndex.size())
                 // 如果有store，用store的操作数替换load的user
-                ReplVal = UndefValue::get(LI->getType());
+                LI->replaceAllUsesWith(UndefValue::get(LI->getType()));
             else
                 return false;
         } else {
-            ReplVal = std::prev(I)->second->getOperand(0);
+            Value *ReplVal = std::prev(I)->second->getOperand(0);
+            if (AC && LI->getMetadata(LLVMContext::MD_nonnull) &&
+                !isKnownNonZero(ReplVal, DL, 0, AC, LI, &DT))
+                addAssumeNonNull(AC, LI);
+
+            if (ReplVal == LI)
+                ReplVal = PoisonValue::get(LI->getType());
+
+            LI->replaceAllUsesWith(ReplVal);
         }
 
-        if (AC && LI->getMetadata(LLVMContext::MD_nonnull) &&
-            !isKnownNonZero(ReplVal, DL, 0, AC, LI, &DT))
-            addAssumeNonNull(AC, LI);
-        if (ReplVal == LI)
-            ReplVal = PoisonValue::get(LI->getType());
-
         // 替换load指令
-        LI->replaceAllUsesWith(ReplVal);
         LI->eraseFromParent();
         LBI.deleteValue(LI);
     }
@@ -670,7 +676,7 @@ void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
 
             // 用流入值代替所有user，移除load指令
             LI->replaceAllUsesWith(V);
-            LI->eraseFromParent();
+            BB->getInstList().erase(LI);
         } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
             AllocaInst *Dest = dyn_cast<AllocaInst>(SI->getPointerOperand());
             if (!Dest)
@@ -686,7 +692,7 @@ void PromoteMem2Reg::RenamePass(BasicBlock *BB, BasicBlock *Pred,
 
             IncomingLocs[AllocaNo] = SI->getDebugLoc();
             // 移除store指令
-            SI->eraseFromParent();
+            BB->getInstList().erase(SI);
         }
     }
 
