@@ -1,7 +1,7 @@
 <p align="center">
-    <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/zouxianyu/SysY-compiler/build_deploy.yml">
-    <img alt="Codiga" src="https://api.codiga.io/project/34978/status/svg">
-    <img alt="GitHub" src="https://img.shields.io/github/license/zouxianyu/SysY-compiler">
+    <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/NKU-RuntimeError/SysY-compiler/build_deploy.yml">
+    <img alt="Codiga" src="https://api.codiga.io/project/35505/status/svg">
+    <img alt="GitHub" src="https://img.shields.io/github/license/NKU-RuntimeError/SysY-compiler">
 </p>
 
 # SysY编译器
