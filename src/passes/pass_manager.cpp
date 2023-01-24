@@ -5,11 +5,12 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/CodeGen/RegAllocRegistry.h>
 #include "IR.h"
 #include "hello_world_pass.h"
 #include "mem2reg_pass.h"
+#include "loop_deletion.h"
 #include "pass_manager.h"
-#include <llvm/CodeGen/RegAllocRegistry.h>
 
 // 使用llvm的新pass manager
 // https://llvm.org/docs/NewPassManager.html
@@ -54,20 +55,28 @@ void PassManager::run(int optLevel, const std::string &filename) {
         PB.registerLoopAnalyses(LAM);
         PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
+#ifdef CONF_USE_DEMO_PASS
         // 在优化管道前端加入自己的pass
         PB.registerPipelineStartEPCallback(
                 [&](llvm::ModulePassManager &MPM, llvm::OptimizationLevel level) {
                     MPM.addPass(llvm::createModuleToFunctionPassAdaptor(HelloWorldPass()));
                     MPM.addPass(llvm::createModuleToFunctionPassAdaptor(llvm::PromotePass()));
+                    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(
+                            llvm::createFunctionToLoopPassAdaptor(llvm::LoopDeletionPass())));
                 }
         );
 
-//        llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
-//                llvm::OptimizationLevel::O3
-//        );
+        llvm::ModulePassManager MPM = PB.buildO0DefaultPipeline(
+                llvm::OptimizationLevel::O0
+        );
+#else
+        llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(
+                llvm::OptimizationLevel::O3
+        );
+#endif
 
         log("PM") << "optimizing module" << std::endl;
-        //MPM.run(IR::ctx.module, MAM);
+        MPM.run(IR::ctx.module, MAM);
 
         // 展示优化后的IR
         IR::show();
@@ -81,7 +90,11 @@ void PassManager::run(int optLevel, const std::string &filename) {
     }
 
     log("PM") << "generate assembly" << std::endl;
+
+#ifdef CONF_USE_DEMO_REG_ALLOC
     llvm::RegisterRegAlloc::setDefault(llvm::createBasicRegisterAllocator);
+#endif
+
     llvm::legacy::PassManager codeGenPass;
     auto fileType = llvm::CGFT_AssemblyFile;
     if (targetMachine->addPassesToEmitFile(codeGenPass, file, nullptr, fileType)) {
