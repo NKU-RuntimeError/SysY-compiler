@@ -12,6 +12,8 @@ option(TEST_LEXER "test lexer using the lexer test file" OFF)
 option(TEST_PARSER "test parser using test file" OFF)
 option(TEST_COMPETITION "test all competition testcases" OFF)
 option(HARD_FLOAT "using hard float ABI" OFF)
+option(USE_DEMO_PASS "use demo passes when optimizing IR" OFF)
+option(USE_DEMO_REG_ALLOC "use demo register allocation algorithm" OFF)
 
 #
 # frontend part
@@ -45,7 +47,45 @@ llvm_map_components_to_libnames(llvm_libs ${LLVM_TARGETS_TO_BUILD} support core 
 # compiler part
 #
 
-file(GLOB_RECURSE COMPILER_SRC src/*.cpp)
+# basic
+list(APPEND COMPILER_SRC
+        src/main.cpp
+        src/log.cpp
+        src/frontend/AST.cpp
+        src/frontend/code_gen.cpp
+        src/frontend/code_gen_helper.cpp
+        src/frontend/const_eval.cpp
+        src/frontend/const_eval_helper.cpp
+        src/frontend/IR.cpp
+        src/frontend/lexer.cpp
+        src/frontend/lib.cpp
+        src/frontend/mem.cpp
+        src/frontend/to_json.cpp
+        src/frontend/type.cpp
+        src/passes/pass_manager.cpp
+        )
+
+# pass
+if (USE_DEMO_PASS)
+    add_compile_definitions(CONF_USE_DEMO_PASS)
+    list(APPEND COMPILER_SRC
+            src/passes/hello_world_pass.cpp
+            src/passes/loop_deletion.cpp
+            src/passes/mem2reg_pass.cpp
+            )
+endif ()
+
+# register allocation
+if (USE_DEMO_REG_ALLOC)
+    add_compile_definitions(CONF_USE_DEMO_REG_ALLOC)
+    list(APPEND COMPILER_SRC
+            src/passes/AllocationOrder.cpp
+            src/passes/LiveDebugVariables.cpp
+            src/passes/RegAllocBase.cpp
+            src/passes/regalloc.cpp
+            )
+endif ()
+
 list(APPEND HEADERS src)
 list(APPEND HEADERS src/frontend)
 list(APPEND HEADERS src/passes)
