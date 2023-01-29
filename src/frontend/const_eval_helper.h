@@ -9,18 +9,18 @@ namespace ConstEvalHelper {
 
     // 常量求值函数，以p为根节点，向下递归调用子节点的constEval函数，并修改子树的根节点
     // Ty需要继承自AST::Base
-    // 有了C++20的concepts后，写起来会优雅一些
-    template<typename Ty>
-    typename std::enable_if_t<std::is_base_of_v<AST::Base, Ty>, void>
-    constEvalHelper(Ty *&p) {
+    // 有了C++20的concept后，写起来会优雅一些
+    template <typename Ty>
+    using DerivedFromBase = std::enable_if_t<std::is_base_of_v<AST::Base, std::decay_t<Ty>>>;
+
+    template<typename Ty,
+            typename = DerivedFromBase<Ty>>
+    void constEvalHelper(Ty *&p) {
         // 调用子树的constEval进行常量求值
         // 必须以Base为中转进行类型转换，不然会报错
         AST::Base *base = p;
         base->constEval(base);
-        p = dynamic_cast<Ty *>(base);
-        if (!p) {
-            throw std::logic_error("constEvalHelper: dynamic_cast failed");
-        }
+        p = static_cast<Ty *>(base);
     }
 
     // 对常量进行类型修正，支持 int->float 和 float->int
