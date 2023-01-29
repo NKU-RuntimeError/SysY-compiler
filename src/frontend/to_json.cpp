@@ -8,7 +8,7 @@ llvm::json::Value AST::CompileUnit::toJSON() {
     obj["NODE_TYPE"] = "CompileUnit";
     llvm::json::Array jsonCompileElements;
     for (auto &compileElement: compileElements) {
-        jsonCompileElements.emplace_back(std::move(compileElement->toJSON()));
+        jsonCompileElements.emplace_back(compileElement->toJSON());
     }
     obj["compileElements"] = std::move(jsonCompileElements);
     return obj;
@@ -27,7 +27,7 @@ llvm::json::Value AST::InitializerList::toJSON() {
     obj["NODE_TYPE"] = "InitializerList";
     llvm::json::Array jsonElements;
     for (auto &element: elements) {
-        jsonElements.emplace_back(std::move(element->toJSON()));
+        jsonElements.emplace_back(element->toJSON());
     }
     obj["elements"] = std::move(jsonElements);
     return obj;
@@ -39,10 +39,10 @@ llvm::json::Value AST::ConstVariableDef::toJSON() {
     obj["name"] = name;
     llvm::json::Array jsonSize;
     for (auto &s: size) {
-        jsonSize.emplace_back(std::move(s->toJSON()));
+        jsonSize.emplace_back(s->toJSON());
     }
     obj["size"] = std::move(jsonSize);
-    obj["initVal"] = std::move(initVal->toJSON());
+    obj["initVal"] = initVal->toJSON();
     return obj;
 }
 
@@ -52,7 +52,7 @@ llvm::json::Value AST::ConstVariableDecl::toJSON() {
     obj["type"] = std::string(magic_enum::enum_name(type));
     llvm::json::Array jsonConstVariableDefs;
     for (auto &constVariableDef: constVariableDefs) {
-        jsonConstVariableDefs.emplace_back(std::move(constVariableDef->toJSON()));
+        jsonConstVariableDefs.emplace_back(constVariableDef->toJSON());
     }
     obj["constVariableDefs"] = std::move(jsonConstVariableDefs);
     return obj;
@@ -64,11 +64,11 @@ llvm::json::Value AST::VariableDef::toJSON() {
     obj["name"] = name;
     llvm::json::Array jsonSize;
     for (auto &s: size) {
-        jsonSize.emplace_back(std::move(s->toJSON()));
+        jsonSize.emplace_back(s->toJSON());
     }
     obj["size"] = std::move(jsonSize);
     if (initVal) {
-        obj["initVal"] = std::move(initVal->toJSON());
+        obj["initVal"] = initVal->toJSON();
     }
     return obj;
 }
@@ -79,7 +79,7 @@ llvm::json::Value AST::VariableDecl::toJSON() {
     obj["type"] = std::string(magic_enum::enum_name(type));
     llvm::json::Array jsonVariableDefs;
     for (auto &variableDef: variableDefs) {
-        jsonVariableDefs.emplace_back(std::move(variableDef->toJSON()));
+        jsonVariableDefs.emplace_back(variableDef->toJSON());
     }
     obj["variableDefs"] = std::move(jsonVariableDefs);
     return obj;
@@ -95,7 +95,7 @@ llvm::json::Value AST::FunctionArg::toJSON() {
         if (!s) {
             jsonSize.emplace_back("null");
         } else {
-            jsonSize.emplace_back(std::move(s->toJSON()));
+            jsonSize.emplace_back(s->toJSON());
         }
     }
     obj["size"] = std::move(jsonSize);
@@ -108,7 +108,7 @@ llvm::json::Value AST::Block::toJSON() {
     obj["NODE_TYPE"] = "Block";
     llvm::json::Array jsonElements;
     for (auto &element: elements) {
-        jsonElements.emplace_back(std::move(element->toJSON()));
+        jsonElements.emplace_back(element->toJSON());
     }
     obj["elements"] = std::move(jsonElements);
     return obj;
@@ -121,10 +121,10 @@ llvm::json::Value AST::FunctionDef::toJSON() {
     obj["name"] = name;
     llvm::json::Array jsonArguments;
     for (auto &argument: arguments) {
-        jsonArguments.emplace_back(std::move(argument->toJSON()));
+        jsonArguments.emplace_back(argument->toJSON());
     }
     obj["arguments"] = std::move(jsonArguments);
-    obj["body"] = std::move(body->toJSON());
+    obj["body"] = body->toJSON();
     return obj;
 }
 
@@ -134,7 +134,7 @@ llvm::json::Value AST::LValue::toJSON() {
     obj["name"] = name;
     llvm::json::Array jsonSize;
     for (auto &s: size) {
-        jsonSize.emplace_back(std::move(s->toJSON()));
+        jsonSize.emplace_back(s->toJSON());
     }
     obj["size"] = std::move(jsonSize);
     return obj;
@@ -143,15 +143,15 @@ llvm::json::Value AST::LValue::toJSON() {
 llvm::json::Value AST::AssignStmt::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "AssignStmt";
-    obj["lValue"] = std::move(lValue->toJSON());
-    obj["rValue"] = std::move(rValue->toJSON());
+    obj["lValue"] = lValue->toJSON();
+    obj["rValue"] = rValue->toJSON();
     return obj;
 }
 
 llvm::json::Value AST::ExprStmt::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "ExprStmt";
-    obj["expr"] = std::move(expr->toJSON());
+    obj["expr"] = expr->toJSON();
     return obj;
 }
 
@@ -166,7 +166,7 @@ llvm::json::Value AST::BlockStmt::toJSON() {
     obj["NODE_TYPE"] = "BlockStmt";
     llvm::json::Array jsonElements;
     for (auto &element: elements) {
-        jsonElements.emplace_back(std::move(element->toJSON()));
+        jsonElements.emplace_back(element->toJSON());
     }
     obj["elements"] = std::move(jsonElements);
     return obj;
@@ -175,10 +175,10 @@ llvm::json::Value AST::BlockStmt::toJSON() {
 llvm::json::Value AST::IfStmt::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "IfStmt";
-    obj["condition"] = std::move(condition->toJSON());
-    obj["thenStmt"] = std::move(thenStmt->toJSON());
+    obj["condition"] = condition->toJSON();
+    obj["thenStmt"] = thenStmt->toJSON();
     if (elseStmt) {
-        obj["elseStmt"] = std::move(elseStmt->toJSON());
+        obj["elseStmt"] = elseStmt->toJSON();
     }
     return obj;
 }
@@ -186,8 +186,8 @@ llvm::json::Value AST::IfStmt::toJSON() {
 llvm::json::Value AST::WhileStmt::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "WhileStmt";
-    obj["condition"] = std::move(condition->toJSON());
-    obj["body"] = std::move(body->toJSON());
+    obj["condition"] = condition->toJSON();
+    obj["body"] = body->toJSON();
     return obj;
 }
 
@@ -207,7 +207,7 @@ llvm::json::Value AST::ReturnStmt::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "ReturnStmt";
     if (expr) {
-        obj["expr"] = std::move(expr->toJSON());
+        obj["expr"] = expr->toJSON();
     }
     return obj;
 }
@@ -216,7 +216,7 @@ llvm::json::Value AST::UnaryExpr::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "UnaryExpr";
     obj["op"] = std::string(magic_enum::enum_name(op));
-    obj["expr"] = std::move(expr->toJSON());
+    obj["expr"] = expr->toJSON();
     return obj;
 }
 
@@ -226,7 +226,7 @@ llvm::json::Value AST::FunctionCallExpr::toJSON() {
     obj["name"] = name;
     llvm::json::Array jsonParams;
     for (auto &param: params) {
-        jsonParams.emplace_back(std::move(param->toJSON()));
+        jsonParams.emplace_back(param->toJSON());
     }
     obj["params"] = std::move(jsonParams);
     return obj;
@@ -236,8 +236,8 @@ llvm::json::Value AST::BinaryExpr::toJSON() {
     llvm::json::Object obj;
     obj["NODE_TYPE"] = "BinaryExpr";
     obj["op"] = std::string(magic_enum::enum_name(op));
-    obj["lhs"] = std::move(lhs->toJSON());
-    obj["rhs"] = std::move(rhs->toJSON());
+    obj["lhs"] = lhs->toJSON();
+    obj["rhs"] = rhs->toJSON();
     return obj;
 }
 
@@ -260,7 +260,7 @@ llvm::json::Value AST::VariableExpr::toJSON() {
     obj["name"] = name;
     llvm::json::Array jsonSize;
     for (auto &s: size) {
-        jsonSize.emplace_back(std::move(s->toJSON()));
+        jsonSize.emplace_back(s->toJSON());
     }
     obj["size"] = std::move(jsonSize);
     return obj;
