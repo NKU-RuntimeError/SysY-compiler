@@ -10,10 +10,6 @@
 
 （SysY语言相关资料：[https://gitlab.eduxiji.net/nscscc/compiler2022](https://gitlab.eduxiji.net/nscscc/compiler2022)）
 
-## 设计文档
-
-前端：[report_zou](doc/report_zou.md)
-
 ## 二进制文件下载
 
 基于github actions在线编译，可直接下载二进制文件。
